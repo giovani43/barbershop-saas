@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { RefreshCw, Download, Search, Wifi, WifiOff, Users, CalendarCheck, XCircle, DollarSign, Scissors } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+const API_BASE = "https://web-production-d26db.up.railway.app/api/v1";
 const BARBER_ID = "e6f0681a-9724-4425-9f5e-1ee188899e02";
 const REFRESH_INTERVAL_MS = 30_000;
 

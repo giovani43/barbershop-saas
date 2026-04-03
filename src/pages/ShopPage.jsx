@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5001/api/v1";
+const API_BASE = "https://web-production-d26db.up.railway.app/api/v1";
 
 export default function ShopPage({ shopSlug }) {
   const [shop, setShop] = useState(null);
