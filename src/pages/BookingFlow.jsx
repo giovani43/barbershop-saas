@@ -534,27 +534,31 @@ function SuccessStep({ appt, dni, onRestart }) {
   const [reschedLoading, setReschedLoading] = useState(false);
   const [reschedMsg,     setReschedMsg]     = useState("");
   const [newAppt,        setNewAppt]        = useState(null);
-  // Flags fetched from server (not present in POST /book response)
-  const [apptDetail,     setApptDetail]     = useState(null);
+  // Flags: use POST /book response immediately; refresh via GET for updated state
+  const [serverFlags,    setServerFlags]    = useState(null);
 
   useEffect(() => {
     if (!appt?.id) return;
     fetch(`${API}/appointments/${appt.id}`)
       .then(r => r.json())
-      .then(d => setApptDetail(d))
+      .then(d => { if (d && !d.error) setServerFlags(d); })
       .catch(() => {});
   }, [appt?.id]);
 
   if (!appt) return null;
 
-  const { id, booking_code, barber_name, service_name, price,
-          absence_fee, date, time } = appt;
+  const id           = appt.id           || "";
+  const booking_code = newAppt?.booking_code || appt.booking_code || "";
+  const barber_name  = newAppt?.barber_name  || appt.barber_name  || "";
+  const service_name = newAppt?.service_name || appt.service_name || "";
+  const price        = newAppt?.price        ?? appt.price        ?? 0;
+  const absence_fee  = appt.absence_fee ?? 0;
+  const date         = newAppt?.date         || appt.date         || "";
+  const time         = newAppt?.time         || appt.time         || "";
 
-  // can_cancel / can_reschedule come from the server fetch, with safe defaults
-  const can_cancel    = apptDetail?.can_cancel    ?? false;
-  const can_reschedule = apptDetail?.can_reschedule ?? false;
-
-  const displayAppt = newAppt || appt;
+  // Flags: use server refresh if available, fall back to POST /book response
+  const can_cancel     = serverFlags?.can_cancel     ?? appt.can_cancel     ?? false;
+  const can_reschedule = serverFlags?.can_reschedule ?? appt.can_reschedule ?? false;
 
   // ── Cancel ──────────────────────────────────────────────────────────────────
   const doCancel = async () => {
@@ -649,7 +653,7 @@ function SuccessStep({ appt, dni, onRestart }) {
       }}>
         <span style={{ color:C.muted, fontSize:11, fontWeight:600 }}>Código</span>
         <span style={{ color:C.gold, fontSize:18, fontWeight:800, letterSpacing:1 }}>
-          {displayAppt.booking_code || booking_code}
+          {booking_code || "—"}
         </span>
       </div>
 
@@ -677,12 +681,12 @@ function SuccessStep({ appt, dni, onRestart }) {
         textAlign:"left",
       }}>
         {[
-          ["Barbero",      displayAppt.barber_name  || barber_name  ],
-          ["Servicio",     displayAppt.service_name || service_name ],
-          ["Precio",       fmtPrice(displayAppt.price ?? price)     ],
-          ["Fecha",        displayAppt.date         || date         ],
-          ["Hora",         displayAppt.time         || time         ],
-          ["Pago",         "Efectivo / Mercado Pago"                ],
+          ["Barbero",  barber_name                 ],
+          ["Servicio", service_name                ],
+          ["Precio",   fmtPrice(price)             ],
+          ["Fecha",    date                        ],
+          ["Hora",     time                        ],
+          ["Pago",     "Efectivo / Mercado Pago"   ],
         ].map(([k, v]) => (
           <div key={k} style={{
             display:"flex", justifyContent:"space-between", alignItems:"center",
@@ -707,7 +711,7 @@ function SuccessStep({ appt, dni, onRestart }) {
         <p style={{ color:"#bbb", fontSize:12, margin:0, lineHeight:1.5 }}>
           Cargo por ausencia o llegada tardía (+8 min):{" "}
           <strong style={{ color:C.text }}>
-            {fmtPrice(displayAppt.absence_fee ?? absence_fee)}
+            {fmtPrice(absence_fee)}
           </strong>{" "}
           (30% del servicio). Cancelación gratuita hasta 90 min antes.
         </p>
