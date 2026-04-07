@@ -5,6 +5,7 @@ import BarberDashboard from "./pages/BarberDashboard";
 import AdminLogin      from "./pages/AdminLogin";
 import AdminPanel      from "./pages/AdminPanel";
 import TerminosPage    from "./pages/TerminosPage";
+import VerifyPage      from "./pages/VerifyPage";
 
 function getPath() {
   return window.location.pathname;
@@ -24,6 +25,10 @@ export default function App() {
 
   // Legacy barber dashboard
   if (path === "/dashboard") return <BarberDashboard />;
+
+  // QR verify — público, antes del guard de admin
+  const verifyMatch = path.match(/^\/admin\/verify\/([^/]+)/);
+  if (verifyMatch) return <VerifyPage token={verifyMatch[1]} />;
 
   // Admin panel
   if (path.startsWith("/admin")) return <AdminRoute />;
