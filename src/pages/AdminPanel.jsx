@@ -243,6 +243,10 @@ function BarbersTab({ token }) {
   const [editing,  setEditing]  = useState(null); // null | {} | barber object
   const [saving,   setSaving]   = useState(false);
   const [err,      setErr]      = useState("");
+  const [passModal, setPassModal] = useState(null); // barber object
+  const [newPass,   setNewPass]   = useState("");
+  const [passSaving, setPassSaving] = useState(false);
+  const [passErr,    setPassErr]    = useState("");
 
   const load = useCallback(() => {
     fetch(`${API}/admin/barbers`, { headers: authHeaders(token) })
@@ -279,6 +283,21 @@ function BarbersTab({ token }) {
       method:"DELETE", headers: authHeaders(token),
     });
     load();
+  };
+
+  const savePass = async () => {
+    setPassSaving(true); setPassErr("");
+    try {
+      const res  = await fetch(`${API}/admin/barbers/${passModal.id}/set-password`, {
+        method:  "POST",
+        headers: authHeaders(token),
+        body:    JSON.stringify({ password: newPass }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      setPassModal(null); setNewPass("");
+    } catch (e) { setPassErr(e.message); }
+    finally     { setPassSaving(false); }
   };
 
   const initials = name => name.split(" ").map(w=>w[0]).slice(0,2).join("");
@@ -325,6 +344,12 @@ function BarbersTab({ token }) {
                          fontSize:12, cursor:"pointer" }}>
                 Editar
               </button>
+              <button onClick={() => { setPassModal(b); setNewPass(""); setPassErr(""); }}
+                style={{ background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+                         borderRadius:7, padding:"5px 12px", color:C.gold,
+                         fontSize:12, cursor:"pointer" }}>
+                {b.has_password ? "Contraseña" : "Setear clave"}
+              </button>
               <button onClick={() => remove(b.id)}
                 style={{ background:C.redDim, border:`1px solid rgba(239,68,68,0.25)`,
                          borderRadius:7, padding:"5px 12px", color:C.red,
@@ -335,6 +360,19 @@ function BarbersTab({ token }) {
           </div>
         ))}
       </div>
+
+      {/* Password modal */}
+      {passModal && (
+        <Modal title={`Contraseña — ${passModal.name}`} onClose={() => setPassModal(null)}>
+          <p style={{ color:C.muted, fontSize:13, marginBottom:14 }}>
+            El barbero usará su slug <strong style={{color:C.gold}}>{passModal.slug}</strong> como usuario.
+          </p>
+          <Field label="Nueva contraseña" value={newPass} onChange={setNewPass}
+                 type="password" placeholder="Mínimo 4 caracteres" />
+          {passErr && <p style={{ color:C.red, fontSize:12 }}>{passErr}</p>}
+          <ModalActions onSave={savePass} onCancel={() => setPassModal(null)} saving={passSaving} />
+        </Modal>
+      )}
 
       {/* Edit modal */}
       {editing && (

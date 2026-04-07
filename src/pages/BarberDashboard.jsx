@@ -1,259 +1,292 @@
 import { useState, useEffect, useCallback } from "react";
-import * as XLSX from "xlsx";
-import { RefreshCw, Download, Search, Wifi, WifiOff, Users, CalendarCheck, XCircle, DollarSign, Scissors } from "lucide-react";
 
-const API_BASE = "https://web-production-d26db.up.railway.app/api/v1";
-const BARBER_ID = "e6f0681a-9724-4425-9f5e-1ee188899e02";
-const REFRESH_INTERVAL_MS = 30_000;
+const API = "https://web-production-d26db.up.railway.app/api/v1";
 
-function StatusBadge({ status }) {
-  const styles = {
-    booked:    { bg: "#0f1f0f", border: "#265226", color: "#4ade80", label: "Reservado" },
-    cancelled: { bg: "#1f0f0f", border: "#522020", color: "#e05252", label: "Cancelado" },
-    completed: { bg: "#1f180a", border: "#52350a", color: "#f0a030", label: "Completado" },
+const C = {
+  gold:       "#D4AF37",
+  goldDim:    "rgba(212,175,55,0.12)",
+  goldBorder: "rgba(212,175,55,0.35)",
+  bg:         "#080808",
+  card:       "#0f0f0f",
+  border:     "#1e1e1e",
+  text:       "#f0f0f0",
+  muted:      "#666666",
+  red:        "#ef4444",
+  redDim:     "rgba(239,68,68,0.1)",
+  green:      "#22c55e",
+  greenDim:   "rgba(34,197,94,0.1)",
+};
+
+const STATUS = {
+  booked:    { label: "Reservado",   color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
+  rescheduled:{ label: "Reprogramado", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+  available: { label: "Disponible",  color: "#555",    bg: "transparent" },
+  cancelled: { label: "Cancelado",   color: C.red,     bg: C.redDim },
+  completed: { label: "Completado",  color: C.muted,   bg: "transparent" },
+};
+
+function fmtPrice(p) {
+  return `$${Number(p).toLocaleString("es-AR")}`;
+}
+
+function todayAR() {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" });
+}
+
+// ── Login screen ──────────────────────────────────────────────────────────────
+function BarberLogin({ onLogin }) {
+  const [slug,     setSlug]     = useState("");
+  const [password, setPassword] = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
+
+  const submit = async () => {
+    setError(""); setLoading(true);
+    try {
+      const res  = await fetch(`${API}/barber/login`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ slug: slug.trim().toLowerCase(), password }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      localStorage.setItem("barber_token",  json.token);
+      localStorage.setItem("barber_data",   JSON.stringify(json.barber));
+      onLogin(json.token, json.barber);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
-  const s = styles[status] || styles.booked;
-  return (
-    <span style={{
-      background: s.bg, border: `1px solid ${s.border}`, color: s.color,
-      borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700,
-    }}>{s.label}</span>
-  );
-}
 
-function Avatar({ name }) {
-  const initials = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
   return (
     <div style={{
-      width: 30, height: 30, borderRadius: "50%",
-      background: "#1a1f2e", border: "1px solid #253050",
+      minHeight: "100vh", background: C.bg,
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 11, fontWeight: 700, color: "#7baee8", flexShrink: 0,
-    }}>{initials}</div>
-  );
-}
-
-function StatCard({ label, value, color }) {
-  return (
-    <div style={{
-      background: "#111", border: "1px solid #1e1e1e",
-      borderRadius: 14, padding: "14px 16px", flex: 1, minWidth: 0,
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      padding: 16,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <Icon size={14} color="#444" />
-        <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          {label}
-        </span>
+      <div style={{
+        width: "100%", maxWidth: 380,
+        background: C.card, border: `1px solid ${C.border}`,
+        borderRadius: 20, padding: 32,
+      }}>
+        <p style={{ color: C.gold, fontSize: 11, fontWeight: 700,
+                    letterSpacing: 3, textTransform: "uppercase",
+                    textAlign: "center", margin: "0 0 4px" }}>
+          Panel Barbero
+        </p>
+        <h1 style={{ color: C.text, fontSize: 22, fontWeight: 800,
+                     textAlign: "center", margin: "0 0 28px" }}>
+          BarberOS
+        </h1>
+
+        {[
+          { label: "Tu usuario (slug)", value: slug, set: setSlug, type: "text", ph: "ej: juan-perez" },
+          { label: "Contraseña",        value: password, set: setPassword, type: "password", ph: "••••••••" },
+        ].map(({ label, value, set, type, ph }) => (
+          <div key={label} style={{ marginBottom: 14 }}>
+            <label style={{ color: C.muted, fontSize: 12, display: "block", marginBottom: 5 }}>
+              {label}
+            </label>
+            <input
+              type={type} value={value} placeholder={ph}
+              onChange={e => set(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && submit()}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: "#0a0a0a", border: `1.5px solid ${C.border}`,
+                borderRadius: 10, padding: "13px 14px",
+                color: C.text, fontSize: 15, outline: "none",
+              }}
+            />
+          </div>
+        ))}
+
+        {error && (
+          <p style={{ color: C.red, fontSize: 13, textAlign: "center", marginBottom: 12 }}>
+            {error}
+          </p>
+        )}
+
+        <button onClick={submit} disabled={loading} style={{
+          width: "100%", padding: 15,
+          background: loading ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+          border: "none", borderRadius: 12,
+          color: loading ? C.muted : "#000",
+          fontWeight: 800, fontSize: 14, cursor: loading ? "default" : "pointer",
+        }}>
+          {loading ? "Entrando..." : "Ingresar"}
+        </button>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
     </div>
   );
 }
 
-export default function BarberDashboard() {
-  const [reservations, setReservations] = useState([]);
-  const [stats, setStats]               = useState({});
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
-  const [query, setQuery]               = useState("");
-  const [isOnline, setIsOnline]         = useState(true);
-  const [lastRefresh, setLastRefresh]   = useState(null);
-  const [newIds, setNewIds]             = useState(new Set());
+// ── Dashboard screen ──────────────────────────────────────────────────────────
+function BarberPanel({ token, barber, onLogout }) {
+  const [slots,   setSlots]   = useState([]);
+  const [date,    setDate]    = useState(todayAR());
+  const [loading, setLoading] = useState(true);
 
-  const fetchDashboard = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const res   = await fetch(`${API_BASE}/barber/dashboard?barber_id=${BARBER_ID}&date=${today}`);
-      if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
-      const data = await res.json();
-
-      setReservations(prev => {
-        const prevIds  = new Set(prev.map(r => r.id));
-        const incoming = data.reservations || [];
-        const freshIds = incoming.filter(r => !prevIds.has(r.id)).map(r => r.id);
-        if (freshIds.length > 0) {
-          setNewIds(new Set(freshIds));
-          setTimeout(() => setNewIds(new Set()), 2000);
-        }
-        return incoming;
+      const res  = await fetch(`${API}/barber/me/day?date=${date}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      setStats(data.stats || {});
-      setIsOnline(true);
-      setLastRefresh(new Date());
-    } catch (err) {
-      setError(err.message);
-      setIsOnline(false);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSlots(json.slots);
+    } catch {
+      setSlots([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token, date]);
 
-  useEffect(() => {
-    fetchDashboard(true);
-    const interval = setInterval(() => fetchDashboard(false), REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [fetchDashboard]);
+  useEffect(() => { load(); }, [load]);
 
-  const filtered = reservations.filter(r => {
-    const q = query.toLowerCase();
-    return r.nombre.toLowerCase().includes(q) || r.dni.includes(q);
-  });
-
-  const exportXLSX = () => {
-    const rows = filtered.map(r => ({
-      "Nombre": r.nombre, "DNI": r.dni, "WhatsApp": r.whatsapp,
-      "Fecha": r.fecha, "Hora": r.hora,
-      "Servicio": r.service_name, "Estado": r.status, "Precio": r.price,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 25 }, { wch: 14 }, { wch: 20 }, { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 12 }, { wch: 10 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Reservas");
-    XLSX.writeFile(wb, `reservas-${new Date().toISOString().split("T")[0]}.xlsx`);
-  };
+  const booked    = slots.filter(s => ["booked","rescheduled"].includes(s.status));
+  const available = slots.filter(s => s.status === "available").length;
+  const revenue   = booked.reduce((acc, s) => acc + s.price, 0);
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#0c0c0c", color: "#e8e8e8",
-      fontFamily: "'DM Sans', system-ui, sans-serif", padding: "24px 20px",
+      minHeight: "100vh", background: C.bg,
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      padding: "0 0 40px",
     }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 11, background: "#D4AF37",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Scissors size={18} color="#0c0c0c" />
-          </div>
-          <div>
-            <h1 style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 400, color: "#f0f0f0", margin: 0 }}>
-              Panel de Control
-            </h1>
-            <p style={{ fontSize: 10, color: "#555", letterSpacing: "0.06em", margin: "2px 0 0" }}>
-              BARBERÍA DON PELADO
-            </p>
-          </div>
+      {/* Header */}
+      <div style={{
+        background: C.card, borderBottom: `1px solid ${C.border}`,
+        padding: "16px 20px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <div>
+          <p style={{ color: C.gold, fontSize: 10, fontWeight: 700,
+                      letterSpacing: 3, textTransform: "uppercase", margin: 0 }}>
+            Panel Barbero
+          </p>
+          <p style={{ color: C.text, fontSize: 16, fontWeight: 700, margin: 0 }}>
+            {barber.name}
+          </p>
         </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 7,
-          background: "#141414", border: "1px solid #222",
-          borderRadius: 20, padding: "5px 14px",
-          fontSize: 11, color: isOnline ? "#4ade80" : "#e05252",
+        <button onClick={onLogout} style={{
+          background: "transparent", border: `1px solid ${C.border}`,
+          borderRadius: 8, padding: "6px 14px",
+          color: C.muted, fontSize: 12, cursor: "pointer",
         }}>
-          {isOnline ? <><Wifi size={11} /><span>En vivo</span></> : <><WifiOff size={11} /><span>Sin conexión</span></>}
-        </div>
+          Salir
+        </button>
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        <StatCard icon={CalendarCheck} label="Reservas"   value={stats.booked    ?? 0} color="#4ade80" />
-        <StatCard icon={Users}         label="Total"      value={stats.total     ?? 0} color="#D4AF37" />
-        <StatCard icon={XCircle}       label="Canceladas" value={stats.cancelled ?? 0} color="#e05252" />
-        <StatCard icon={DollarSign}    label="Ingresos"   value={`$${(((stats.revenue ?? 0) / 1000)).toFixed(1)}k`} color="#7baee8" />
-      </div>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-          <Search size={13} color="#444" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)" }} />
+      <div style={{ padding: "20px 16px", maxWidth: 480, margin: "0 auto" }}>
+        {/* Date picker */}
+        <div style={{ marginBottom: 20 }}>
           <input
-            value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar por nombre o DNI..."
+            type="date" value={date}
+            onChange={e => setDate(e.target.value)}
             style={{
-              width: "100%", background: "#111", border: "1px solid #222",
-              borderRadius: 10, padding: "9px 14px 9px 36px",
-              color: "#e8e8e8", fontSize: 13, outline: "none",
-              fontFamily: "inherit", boxSizing: "border-box",
+              background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 10, padding: "10px 14px",
+              color: C.text, fontSize: 14, outline: "none", width: "100%",
+              boxSizing: "border-box",
             }}
           />
         </div>
-        <button onClick={() => fetchDashboard(false)} style={{
-          display: "flex", alignItems: "center", gap: 7,
-          background: "#111", border: "1px solid #222", borderRadius: 10,
-          padding: "9px 16px", color: "#aaa", fontSize: 12,
-          fontFamily: "inherit", cursor: "pointer",
-        }}>
-          <RefreshCw size={13} />Actualizar
-        </button>
-        <button onClick={exportXLSX} style={{
-          display: "flex", alignItems: "center", gap: 7,
-          background: "#D4AF37", border: "none", borderRadius: 10,
-          padding: "9px 16px", color: "#0c0c0c", fontSize: 12,
-          fontFamily: "inherit", cursor: "pointer", fontWeight: 700,
-        }}>
-          <Download size={13} />Descargar .xlsx
-        </button>
-      </div>
 
-      {error && (
-        <div style={{
-          background: "#1f0f0f", border: "1px solid #522020",
-          borderRadius: 12, padding: "12px 16px", marginBottom: 16, color: "#e05252", fontSize: 13,
-        }}>⚠ {error}</div>
-      )}
-
-      <div style={{ border: "1px solid #1e1e1e", borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "#111", borderBottom: "1px solid #1e1e1e" }}>
-                {["Cliente", "DNI", "WhatsApp", "Fecha", "Hora", "Servicio", "Estado"].map(h => (
-                  <th key={h} style={{
-                    padding: "11px 14px", textAlign: "left",
-                    fontSize: 10, color: "#555", textTransform: "uppercase",
-                    letterSpacing: "0.08em", fontWeight: 500,
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#444" }}>Cargando...</td></tr>
-              )}
-              {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#444" }}>No hay reservas para hoy.</td></tr>
-              )}
-              {!loading && filtered.map(r => (
-                <tr key={r.id} style={{
-                  borderBottom: "1px solid #141414",
-                  background: newIds.has(r.id) ? "#1a2010" : "transparent",
-                  transition: "background 0.5s ease",
-                }}>
-                  <td style={{ padding: "12px 14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Avatar name={r.nombre} />
-                      <span style={{ color: "#f0f0f0", fontWeight: 500 }}>{r.nombre}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 14px", fontFamily: "monospace", fontSize: 12, color: "#888" }}>{r.dni}</td>
-                  <td style={{ padding: "12px 14px", color: "#7baee8" }}>{r.whatsapp}</td>
-                  <td style={{ padding: "12px 14px", color: "#aaa" }}>{r.fecha}</td>
-                  <td style={{ padding: "12px 14px" }}>
-                    <span style={{ fontWeight: 700, color: "#f0f0f0" }}>{r.hora}</span>
-                    <span style={{ color: "#555" }}> hs</span>
-                  </td>
-                  <td style={{ padding: "12px 14px", color: "#aaa", fontSize: 12 }}>{r.service_name}</td>
-                  <td style={{ padding: "12px 14px" }}><StatusBadge status={r.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Stats */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          {[
+            { label: "Turnos", value: booked.length, color: C.gold },
+            { label: "Libres",  value: available,     color: C.muted },
+            { label: "Ganancia", value: fmtPrice(revenue), color: C.green },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{
+              flex: 1, background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 12, padding: "12px 10px", textAlign: "center",
+            }}>
+              <p style={{ color, fontSize: 18, fontWeight: 800, margin: "0 0 2px" }}>{value}</p>
+              <p style={{ color: C.muted, fontSize: 10, margin: 0, textTransform: "uppercase", letterSpacing: 1 }}>{label}</p>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
-        <span style={{ fontSize: 12, color: "#555" }}>
-          {filtered.length} de {reservations.length} reservas
-        </span>
-        {lastRefresh && (
-          <span style={{ fontSize: 11, color: "#333" }}>
-            Último refresh: {lastRefresh.toLocaleTimeString("es-AR")} · Auto 30s
-          </span>
+        {/* Slot list */}
+        {loading ? (
+          <p style={{ color: C.muted, textAlign: "center" }}>Cargando...</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {slots.length === 0 && (
+              <p style={{ color: C.muted, textAlign: "center", fontSize: 14 }}>
+                No hay turnos para este día
+              </p>
+            )}
+            {slots.map(slot => {
+              const st = STATUS[slot.status] || STATUS.available;
+              const isBooked = ["booked","rescheduled"].includes(slot.status);
+              return (
+                <div key={slot.id} style={{
+                  background: C.card, border: `1px solid ${C.border}`,
+                  borderRadius: 12, padding: "12px 16px",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  opacity: slot.status === "available" ? 0.5 : 1,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ color: C.gold, fontWeight: 800, fontSize: 16, minWidth: 48 }}>
+                      {slot.time}
+                    </span>
+                    <div>
+                      {isBooked ? (
+                        <>
+                          <p style={{ color: C.text, fontWeight: 600, fontSize: 13, margin: 0 }}>
+                            {slot.client_name || "Cliente"}
+                          </p>
+                          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+                            {slot.service_name} · {fmtPrice(slot.price)}
+                          </p>
+                        </>
+                      ) : (
+                        <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
+                          {slot.status === "available" ? "Disponible" : slot.service_name || "—"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span style={{
+                    background: st.bg, color: st.color,
+                    borderRadius: 20, padding: "3px 10px",
+                    fontSize: 11, fontWeight: 700,
+                  }}>
+                    {st.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
   );
+}
+
+// ── Root: login guard ─────────────────────────────────────────────────────────
+export default function BarberDashboard() {
+  const [token,  setToken]  = useState(() => localStorage.getItem("barber_token") || "");
+  const [barber, setBarber] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("barber_data") || "null"); }
+    catch { return null; }
+  });
+
+  const handleLogin = (t, b) => { setToken(t); setBarber(b); };
+  const handleLogout = () => {
+    localStorage.removeItem("barber_token");
+    localStorage.removeItem("barber_data");
+    setToken(""); setBarber(null);
+  };
+
+  if (!token || !barber) return <BarberLogin onLogin={handleLogin} />;
+  return <BarberPanel token={token} barber={barber} onLogout={handleLogout} />;
 }

@@ -23,8 +23,8 @@ export default function App() {
   // Términos y condiciones
   if (path === "/terminos") return <TerminosPage />;
 
-  // Legacy barber dashboard
-  if (path === "/dashboard") return <BarberDashboard />;
+  // Barber dashboard (login + panel)
+  if (path === "/barber" || path === "/dashboard") return <BarberDashboard />;
 
   // QR verify — público, antes del guard de admin
   const verifyMatch = path.match(/^\/admin\/verify\/([^/]+)/);
