@@ -4,6 +4,7 @@ import BookingFlow     from "./pages/BookingFlow";
 import BarberDashboard from "./pages/BarberDashboard";
 import AdminLogin      from "./pages/AdminLogin";
 import AdminPanel      from "./pages/AdminPanel";
+import TerminosPage    from "./pages/TerminosPage";
 
 function getPath() {
   return window.location.pathname;
@@ -17,6 +18,9 @@ export default function App() {
     window.addEventListener("popstate", handler);
     return () => window.removeEventListener("popstate", handler);
   }, []);
+
+  // Términos y condiciones
+  if (path === "/terminos") return <TerminosPage />;
 
   // Legacy barber dashboard
   if (path === "/dashboard") return <BarberDashboard />;

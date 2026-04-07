@@ -63,10 +63,12 @@ function StatCard({ label, value, accent }) {
 // ── Badge ─────────────────────────────────────────────────────────────────────
 function Badge({ status }) {
   const map = {
-    available: { bg:"rgba(96,165,250,0.12)", color:C.blue,  label:"Libre"     },
-    booked:    { bg:C.greenDim,              color:C.green, label:"Reservado" },
-    cancelled: { bg:C.redDim,               color:C.red,   label:"Cancelado" },
-    completed: { bg:C.goldDim,              color:C.gold,  label:"Completo"  },
+    available:   { bg:"rgba(96,165,250,0.12)",  color:C.blue,  label:"Libre"        },
+    booked:      { bg:C.greenDim,               color:C.green, label:"Reservado"    },
+    rescheduled: { bg:"rgba(168,85,247,0.12)",  color:"#a855f7", label:"Reprogramado" },
+    cancelled:   { bg:C.redDim,                color:C.red,   label:"Cancelado"    },
+    completed:   { bg:C.goldDim,               color:C.gold,  label:"Completo"     },
+    no_show:     { bg:"rgba(239,68,68,0.18)",   color:C.red,   label:"Ausente"      },
   };
   const s = map[status] || map.available;
   return (
@@ -79,9 +81,10 @@ function Badge({ status }) {
 
 // ── Dashboard tab ─────────────────────────────────────────────────────────────
 function DashboardTab({ token, shop }) {
-  const [data,    setData]    = useState(null);
-  const [date,    setDate]    = useState(() => new Date().toISOString().slice(0,10));
-  const [loading, setLoading] = useState(false);
+  const [data,       setData]       = useState(null);
+  const [date,       setDate]       = useState(() => new Date().toISOString().slice(0,10));
+  const [loading,    setLoading]    = useState(false);
+  const [noShowLoading, setNoShowLoading] = useState(null); // appointment id being processed
 
   const load = useCallback(() => {
     setLoading(true);
@@ -92,6 +95,26 @@ function DashboardTab({ token, shop }) {
   }, [token, date]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleNoShow = async (apptId) => {
+    if (!confirm("¿Marcar como ausente y cobrar la multa?")) return;
+    setNoShowLoading(apptId);
+    try {
+      const res  = await fetch(`${API}/admin/appointments/${apptId}/no-show`, {
+        method: "POST",
+        headers: authHeaders(token),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      // Abrir link de WhatsApp automáticamente
+      if (json.wa_link) window.open(json.wa_link, "_blank");
+      load();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setNoShowLoading(null);
+    }
+  };
 
   return (
     <div>
@@ -129,7 +152,7 @@ function DashboardTab({ token, shop }) {
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
               <tr>
-                {["Hora","Barbero","Cliente","Servicio","Precio","Estado"].map(h => (
+                {["Hora","Código","Cliente","Servicio","Precio","Estado",""].map(h => (
                   <th key={h} style={{
                     color:C.muted, fontWeight:600, padding:"8px 10px", textAlign:"left",
                     borderBottom:`1px solid ${C.border}`, whiteSpace:"nowrap",
@@ -141,19 +164,69 @@ function DashboardTab({ token, shop }) {
               {data.agenda.filter(r => r.status !== "available").map((r, i) => (
                 <tr key={r.id}
                   style={{ background: i % 2 === 0 ? "transparent" : "#0d0d0d" }}>
-                  <td style={{ padding:"9px 10px", color:C.gold, fontWeight:700 }}>{r.hora}</td>
-                  <td style={{ padding:"9px 10px", color:C.text }}>{r.barber_name}</td>
-                  <td style={{ padding:"9px 10px", color:C.text }}>
-                    {r.client_name || "—"}
-                    {r.client_wa && (
-                      <a href={`https://wa.me/${r.client_wa.replace(/\D/g,"")}`}
-                         target="_blank" rel="noreferrer"
-                         style={{ color:C.green, marginLeft:6, fontSize:11 }}>WA</a>
+
+                  <td style={{ padding:"9px 10px", color:C.gold, fontWeight:700, whiteSpace:"nowrap" }}>
+                    {r.hora}
+                  </td>
+
+                  <td style={{ padding:"9px 10px" }}>
+                    {r.booking_code ? (
+                      <span style={{ color:C.gold, fontWeight:700, fontSize:12 }}>
+                        {r.booking_code}
+                      </span>
+                    ) : (
+                      <span style={{ color:"#333" }}>—</span>
                     )}
                   </td>
+
+                  <td style={{ padding:"9px 10px", color:C.text }}>
+                    <div>{r.client_name || "—"}</div>
+                    {(r.client_wa || r.whatsapp_number) && (
+                      <a href={`https://wa.me/${(r.client_wa || r.whatsapp_number).replace(/\D/g,"")}`}
+                         target="_blank" rel="noreferrer"
+                         style={{ color:C.green, fontSize:11 }}>
+                        WhatsApp ↗
+                      </a>
+                    )}
+                  </td>
+
                   <td style={{ padding:"9px 10px", color:C.muted }}>{r.service_name}</td>
-                  <td style={{ padding:"9px 10px", color:C.text }}>{fmtPrice(r.price)}</td>
-                  <td style={{ padding:"9px 10px" }}><Badge status={r.status} /></td>
+
+                  <td style={{ padding:"9px 10px", color:C.text, whiteSpace:"nowrap" }}>
+                    {fmtPrice(r.price)}
+                    {r.absence_charge_amount > 0 && (
+                      <div style={{ color:C.red, fontSize:10 }}>
+                        Multa: {fmtPrice(r.absence_charge_amount)}
+                      </div>
+                    )}
+                  </td>
+
+                  <td style={{ padding:"9px 10px" }}>
+                    <Badge status={r.status} />
+                  </td>
+
+                  {/* Botón cobrar ausencia */}
+                  <td style={{ padding:"9px 10px" }}>
+                    {r.show_no_show_btn && (
+                      <button
+                        onClick={() => handleNoShow(r.id)}
+                        disabled={noShowLoading === r.id}
+                        style={{
+                          background:"rgba(239,68,68,0.15)",
+                          border:"1px solid rgba(239,68,68,0.4)",
+                          borderRadius:7, padding:"5px 10px",
+                          color:C.red, fontSize:11, fontWeight:700,
+                          cursor: noShowLoading === r.id ? "default" : "pointer",
+                          whiteSpace:"nowrap",
+                        }}
+                      >
+                        {noShowLoading === r.id ? "..." : `⚠ Cobrar ausencia (${fmtPrice(r.absence_fee)})`}
+                      </button>
+                    )}
+                    {r.status === "no_show" && r.absence_charge_sent && (
+                      <span style={{ color:"#555", fontSize:11 }}>Notificado ✓</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

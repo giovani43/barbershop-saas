@@ -348,12 +348,20 @@ function SlotGroup({ label, slots, selected, onSelect }) {
 }
 
 // ── Step 4: Confirm ───────────────────────────────────────────────────────────
-function ConfirmStep({ barber, service, slot, date, form, onChange, onSubmit, loading, error }) {
+function ConfirmStep({
+  barber, service, slot, date, form, onChange,
+  onSubmit, loading, error,
+  termsAccepted, onTermsChange,
+  activeApptId,
+}) {
   const fields = [
-    { key:"full_name", label:"Nombre completo",   placeholder:"Juan García",       type:"text" },
-    { key:"dni",       label:"DNI",                placeholder:"Sin puntos: 12345678", type:"tel"  },
-    { key:"whatsapp",  label:"WhatsApp",           placeholder:"+549 11 1234-5678", type:"tel"  },
+    { key:"full_name", label:"Nombre completo",      placeholder:"Juan García",          type:"text" },
+    { key:"dni",       label:"DNI",                   placeholder:"Sin puntos: 12345678", type:"tel"  },
+    { key:"whatsapp",  label:"WhatsApp",              placeholder:"+549 11 1234-5678",    type:"tel"  },
   ];
+
+  const absenceFee = Math.round(service.price * 0.30);
+  const canSubmit  = termsAccepted && !loading && !activeApptId;
 
   return (
     <div style={{ padding:"0 16px 32px", animation:"fadeUp .35s ease" }}>
@@ -361,10 +369,25 @@ function ConfirmStep({ barber, service, slot, date, form, onChange, onSubmit, lo
         Confirmá tu turno
       </h2>
 
+      {/* Turno activo — bloqueo */}
+      {activeApptId && (
+        <div style={{
+          background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.3)",
+          borderRadius:12, padding:"12px 14px", marginBottom:16,
+        }}>
+          <p style={{ color:C.red, fontSize:13, fontWeight:700, margin:"0 0 4px" }}>
+            Ya tenés un turno activo
+          </p>
+          <p style={{ color:"#ccc", fontSize:12, margin:0, lineHeight:1.5 }}>
+            Cancelá o completá tu turno actual antes de reservar uno nuevo.
+          </p>
+        </div>
+      )}
+
       {/* Summary card */}
       <div style={{
         background:C.card, border:`1px solid ${C.border}`,
-        borderRadius:16, padding:"16px 18px", marginBottom:24,
+        borderRadius:16, padding:"16px 18px", marginBottom:20,
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           <div style={{
@@ -399,6 +422,23 @@ function ConfirmStep({ barber, service, slot, date, form, onChange, onSubmit, lo
         </div>
       </div>
 
+      {/* Aviso multa dinámica */}
+      <div style={{
+        background:"rgba(201,153,60,0.07)", border:`1px solid ${C.goldBorder}`,
+        borderRadius:12, padding:"12px 14px", marginBottom:20,
+      }}>
+        <p style={{ color:C.gold, fontSize:11, fontWeight:700, margin:"0 0 4px",
+                    textTransform:"uppercase", letterSpacing:.5 }}>
+          ⚠ Aviso importante
+        </p>
+        <p style={{ color:"#ccc", fontSize:12, margin:0, lineHeight:1.5 }}>
+          La <strong style={{color:C.text}}>ausencia al turno</strong> genera un cargo de{" "}
+          <strong style={{color:C.text}}>{fmtPrice(absenceFee)}</strong> (30% de {fmtPrice(service.price)}).
+          Tolerancia de llegada: <strong style={{color:C.text}}>8 minutos</strong>.
+          Cancelación gratuita hasta <strong style={{color:C.text}}>90 min antes</strong>.
+        </p>
+      </div>
+
       {/* Form */}
       {fields.map(f => (
         <div key={f.key} style={{ marginBottom:14 }}>
@@ -416,11 +456,47 @@ function ConfirmStep({ barber, service, slot, date, form, onChange, onSubmit, lo
               borderRadius:10, padding:"13px 14px",
               color:C.text, fontSize:15, outline:"none",
             }}
-            onFocus={e  => { e.target.style.borderColor = C.gold; }}
-            onBlur={e   => { e.target.style.borderColor = C.border; }}
+            onFocus={e => { e.target.style.borderColor = C.gold; }}
+            onBlur={e  => { e.target.style.borderColor = C.border; }}
           />
         </div>
       ))}
+
+      {/* T&C checkbox */}
+      <label style={{
+        display:"flex", alignItems:"flex-start", gap:10,
+        cursor:"pointer", marginBottom:20, marginTop:6,
+      }}>
+        <div
+          onClick={() => onTermsChange(!termsAccepted)}
+          style={{
+            width:20, height:20, borderRadius:5, flexShrink:0, marginTop:1,
+            border:`2px solid ${termsAccepted ? C.gold : C.border}`,
+            background: termsAccepted ? C.gold : "transparent",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            cursor:"pointer", transition:"all .15s",
+          }}
+        >
+          {termsAccepted && (
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                 stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          )}
+        </div>
+        <span style={{ color:"#aaa", fontSize:12, lineHeight:1.6 }}>
+          Leí y acepto los{" "}
+          <a
+            href="/terminos" target="_blank" rel="noreferrer"
+            style={{ color:C.gold, textDecoration:"underline" }}
+            onClick={e => e.stopPropagation()}
+          >
+            Términos y Condiciones
+          </a>
+          {" "}de MVZ Barbería, incluyendo la política de ausencias y el cargo del 30%.
+          Firma electrónica con validez por Ley N° 25.506.
+        </span>
+      </label>
 
       {error && (
         <p style={{ color:C.red, fontSize:13, marginBottom:12, textAlign:"center" }}>
@@ -428,82 +504,340 @@ function ConfirmStep({ barber, service, slot, date, form, onChange, onSubmit, lo
         </p>
       )}
 
-      <button onClick={onSubmit} disabled={loading} style={{
+      <button onClick={onSubmit} disabled={!canSubmit} style={{
         width:"100%", padding:"16px",
-        background: loading ? "#444" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
-        border:"none", borderRadius:12,
-        color: loading ? C.muted : "#000",
+        background: canSubmit ? `linear-gradient(135deg, #E8CC6A, #9A7B1E)` : "#222",
+        border: canSubmit ? "none" : `1px solid ${C.border}`,
+        borderRadius:12,
+        color: canSubmit ? "#000" : C.muted,
         fontSize:15, fontWeight:800,
-        cursor: loading ? "default" : "pointer",
+        cursor: canSubmit ? "pointer" : "default",
         letterSpacing:.5, marginTop:4,
         transition:"all .2s",
       }}>
-        {loading ? "Reservando..." : "Confirmar turno"}
+        {loading ? "Reservando..." : !termsAccepted ? "Aceptá los T&C para continuar" : "Confirmar turno"}
       </button>
     </div>
   );
 }
 
 // ── Step 5: Success ───────────────────────────────────────────────────────────
-function SuccessStep({ appt, onRestart }) {
+function SuccessStep({ appt, dni, onRestart }) {
+  const [cancelState,  setCancelState]  = useState("idle");   // idle | confirming | loading | done | error
+  const [cancelMsg,    setCancelMsg]    = useState("");
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [reschedSlots, setReschedSlots] = useState([]);
+  const [reschedDate,  setReschedDate]  = useState(todayStr());
+  const [reschedLoading, setReschedLoading] = useState(false);
+  const [reschedMsg,   setReschedMsg]   = useState("");
+  const [newAppt,      setNewAppt]      = useState(null);     // after successful reschedule
+
+  if (!appt) return null;
+
+  const { id, booking_code, qr_token, barber_name, service_name, price,
+          absence_fee, date, time, can_cancel, can_reschedule } = appt;
+
+  const displayAppt = newAppt || appt;
+
+  // ── Cancel ──────────────────────────────────────────────────────────────────
+  const doCancel = async () => {
+    setCancelState("loading");
+    try {
+      const res  = await fetch(`${API}/appointments/${id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dni: (dni || "").replace(/\./g, "").trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error");
+      setCancelState("done");
+      setCancelMsg("Turno cancelado. El slot quedó libre.");
+    } catch (e) {
+      setCancelState("error");
+      setCancelMsg(e.message);
+    }
+  };
+
+  // ── Reschedule — load slots ─────────────────────────────────────────────────
+  const loadReschedSlots = async (dateStr) => {
+    setReschedLoading(true);
+    setReschedMsg("");
+    try {
+      const barberId = appt.barber_id || "";
+      const res = await fetch(`${API}/appointments/day?barber_id=${barberId}&date=${dateStr}`);
+      const json = await res.json();
+      setReschedSlots((json.slots || []).filter(s => s.status === "available"));
+    } catch { setReschedSlots([]); }
+    finally  { setReschedLoading(false); }
+  };
+
+  const openReschedule = () => {
+    setRescheduleOpen(true);
+    loadReschedSlots(reschedDate);
+  };
+
+  const doReschedule = async (newSlotId) => {
+    setReschedLoading(true);
+    setReschedMsg("");
+    try {
+      const res  = await fetch(`${API}/appointments/${id}/reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dni: (dni || "").replace(/\./g, "").trim(),
+          new_slot_id: newSlotId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error");
+      setNewAppt(json.appointment);
+      setRescheduleOpen(false);
+      setReschedMsg("¡Turno reprogramado!");
+    } catch (e) {
+      setReschedMsg(e.message);
+    } finally {
+      setReschedLoading(false);
+    }
+  };
+
   return (
     <div style={{
       display:"flex", flexDirection:"column", alignItems:"center",
-      padding:"40px 24px 32px", textAlign:"center",
+      padding:"32px 20px 40px", textAlign:"center",
       animation:"fadeUp .4s ease",
     }}>
+
+      {/* Header icon */}
       <div style={{
-        width:80, height:80, borderRadius:"50%",
+        width:72, height:72, borderRadius:"50%",
         background:C.greenDim, border:`2px solid ${C.green}`,
         display:"flex", alignItems:"center", justifyContent:"center",
-        marginBottom:20,
+        marginBottom:16,
       }}>
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
              stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
       </div>
 
-      <h2 style={{ color:C.text, fontSize:24, fontWeight:800, margin:"0 0 6px" }}>
+      <h2 style={{ color:C.text, fontSize:22, fontWeight:800, margin:"0 0 4px" }}>
         ¡Turno confirmado!
       </h2>
-      <p style={{ color:C.muted, fontSize:14, margin:"0 0 28px" }}>
-        Te esperamos.
+
+      {/* Booking code */}
+      <div style={{
+        background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+        borderRadius:10, padding:"6px 18px", margin:"10px 0 20px",
+        display:"inline-flex", alignItems:"center", gap:8,
+      }}>
+        <span style={{ color:C.muted, fontSize:11, fontWeight:600 }}>Código</span>
+        <span style={{ color:C.gold, fontSize:18, fontWeight:800, letterSpacing:1 }}>
+          {displayAppt.booking_code || booking_code}
+        </span>
+      </div>
+
+      {/* QR */}
+      <div style={{
+        background:"#fff", borderRadius:16, padding:12,
+        marginBottom:20, display:"inline-block",
+        boxShadow:"0 4px 24px rgba(212,175,55,0.15)",
+      }}>
+        <img
+          src={`${API}/appointments/${id}/qr`}
+          alt="QR del turno"
+          style={{ width:160, height:160, display:"block" }}
+        />
+      </div>
+      <p style={{ color:C.muted, fontSize:11, margin:"0 0 24px" }}>
+        Mostrá este QR al barbero para verificar tu turno
       </p>
 
-      {appt && (
-        <div style={{
-          background:C.card, border:`1px solid ${C.border}`,
-          borderRadius:16, padding:"18px 20px", width:"100%",
-          maxWidth:340, marginBottom:28, boxSizing:"border-box",
-        }}>
-          {[
-            ["Barbero",    appt.barber_name ],
-            ["Servicio",   appt.service_name],
-            ["Precio",     fmtPrice(appt.price)],
-            ["Fecha",      appt.date],
-            ["Hora",       appt.time ],
-          ].map(([k,v]) => (
-            <div key={k} style={{
-              display:"flex", justifyContent:"space-between",
-              padding:"6px 0", borderBottom:`1px solid ${C.border}`,
+      {/* Details card */}
+      <div style={{
+        background:C.card, border:`1px solid ${C.border}`,
+        borderRadius:16, padding:"16px 20px", width:"100%",
+        maxWidth:360, marginBottom:20, boxSizing:"border-box",
+        textAlign:"left",
+      }}>
+        {[
+          ["Barbero",      displayAppt.barber_name  || barber_name  ],
+          ["Servicio",     displayAppt.service_name || service_name ],
+          ["Precio",       fmtPrice(displayAppt.price ?? price)     ],
+          ["Fecha",        displayAppt.date         || date         ],
+          ["Hora",         displayAppt.time         || time         ],
+          ["Pago",         "Efectivo / Mercado Pago"                ],
+        ].map(([k, v]) => (
+          <div key={k} style={{
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+            padding:"7px 0", borderBottom:`1px solid ${C.border}`,
+          }}>
+            <span style={{ color:C.muted, fontSize:13 }}>{k}</span>
+            <span style={{ color:C.text,  fontSize:13, fontWeight:600 }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Absence fee warning */}
+      <div style={{
+        background:"rgba(201,153,60,0.06)", border:`1px solid ${C.goldBorder}`,
+        borderRadius:12, padding:"10px 14px", width:"100%",
+        maxWidth:360, marginBottom:22, boxSizing:"border-box", textAlign:"left",
+      }}>
+        <p style={{ color:C.gold, fontSize:11, fontWeight:700, margin:"0 0 3px",
+                    textTransform:"uppercase", letterSpacing:.5 }}>
+          Recordá
+        </p>
+        <p style={{ color:"#bbb", fontSize:12, margin:0, lineHeight:1.5 }}>
+          Cargo por ausencia o llegada tardía (+8 min):{" "}
+          <strong style={{ color:C.text }}>
+            {fmtPrice(displayAppt.absence_fee ?? absence_fee)}
+          </strong>{" "}
+          (30% del servicio). Cancelación gratuita hasta 90 min antes.
+        </p>
+      </div>
+
+      {/* Cancel / Reschedule */}
+      {cancelState === "done" ? (
+        <p style={{ color:C.green, fontSize:13, marginBottom:16 }}>{cancelMsg}</p>
+      ) : cancelState === "confirming" ? (
+        <div style={{ width:"100%", maxWidth:360, marginBottom:16, textAlign:"left" }}>
+          <p style={{ color:"#ccc", fontSize:13, marginBottom:12 }}>
+            ¿Confirmas la cancelación? Esta acción libera el slot.
+          </p>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={() => setCancelState("idle")} style={{
+              flex:1, padding:"12px", background:"transparent",
+              border:`1px solid ${C.border}`, borderRadius:10,
+              color:C.muted, fontSize:14, cursor:"pointer",
             }}>
-              <span style={{ color:C.muted, fontSize:13 }}>{k}</span>
-              <span style={{ color:C.text,  fontSize:13, fontWeight:600 }}>{v}</span>
-            </div>
-          ))}
+              No, volver
+            </button>
+            <button onClick={doCancel} style={{
+              flex:1, padding:"12px",
+              background:"rgba(239,68,68,0.15)",
+              border:"1px solid rgba(239,68,68,0.4)",
+              borderRadius:10, color:C.red, fontWeight:700,
+              fontSize:14, cursor:"pointer",
+            }}>
+              Sí, cancelar
+            </button>
+          </div>
+        </div>
+      ) : cancelState === "error" ? (
+        <p style={{ color:C.red, fontSize:13, marginBottom:16 }}>{cancelMsg}</p>
+      ) : (
+        <div style={{ display:"flex", gap:10, width:"100%", maxWidth:360, marginBottom:16 }}>
+          {can_cancel && (
+            <button onClick={() => setCancelState("confirming")} style={{
+              flex:1, padding:"11px",
+              background:"rgba(239,68,68,0.1)",
+              border:"1px solid rgba(239,68,68,0.3)",
+              borderRadius:10, color:C.red,
+              fontSize:13, fontWeight:700, cursor:"pointer",
+            }}>
+              Cancelar turno
+            </button>
+          )}
+          {can_reschedule && !newAppt && (
+            <button onClick={openReschedule} style={{
+              flex:1, padding:"11px",
+              background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+              borderRadius:10, color:C.gold,
+              fontSize:13, fontWeight:700, cursor:"pointer",
+            }}>
+              Reprogramar
+            </button>
+          )}
         </div>
       )}
 
-      <p style={{ color:"#555", fontSize:12, marginBottom:24 }}>
-        Recordá: la ausencia al turno tiene un valor de $6.000
-      </p>
+      {reschedMsg && (
+        <p style={{ color: reschedMsg.includes("!") ? C.green : C.red,
+                    fontSize:13, marginBottom:12 }}>
+          {reschedMsg}
+        </p>
+      )}
+
+      {/* Reschedule modal */}
+      {rescheduleOpen && (
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,0.85)",
+          display:"flex", alignItems:"flex-end", justifyContent:"center",
+          zIndex:1000,
+        }}>
+          <div style={{
+            background:"#141414", borderRadius:"20px 20px 0 0",
+            width:"100%", maxWidth:480,
+            padding:"24px 20px 36px",
+            maxHeight:"80vh", overflowY:"auto",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between",
+                          alignItems:"center", marginBottom:16 }}>
+              <h3 style={{ color:C.text, fontSize:16, fontWeight:700, margin:0 }}>
+                Elegí nuevo horario
+              </h3>
+              <button onClick={() => setRescheduleOpen(false)}
+                style={{ background:"none", border:"none", color:C.muted,
+                         fontSize:22, cursor:"pointer" }}>
+                ×
+              </button>
+            </div>
+
+            {/* Date picker */}
+            <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+              {[todayStr(), addDays(todayStr(),1), addDays(todayStr(),2)].map((d, i) => {
+                const active = d === reschedDate;
+                return (
+                  <button key={d} onClick={() => { setReschedDate(d); loadReschedSlots(d); }}
+                    style={{
+                      flex:1, padding:"8px 4px", borderRadius:8,
+                      background: active ? C.gold : C.card,
+                      border: `1px solid ${active ? C.gold : C.border}`,
+                      color: active ? "#000" : C.muted,
+                      fontWeight: active ? 700 : 400,
+                      fontSize:12, cursor:"pointer",
+                    }}>
+                    {labelDate(d, i)}
+                  </button>
+                );
+              })}
+            </div>
+
+            {reschedLoading ? (
+              <p style={{ color:C.muted, textAlign:"center", padding:24 }}>Cargando...</p>
+            ) : reschedSlots.length === 0 ? (
+              <p style={{ color:C.muted, textAlign:"center", padding:24 }}>
+                Sin horarios disponibles este día
+              </p>
+            ) : (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
+                {reschedSlots.map(s => (
+                  <button key={s.id} onClick={() => doReschedule(s.id)} style={{
+                    padding:"12px 6px", borderRadius:8,
+                    background:"rgba(212,175,55,0.07)",
+                    border:"1.5px solid rgba(212,175,55,0.35)",
+                    color:C.gold, fontSize:14, fontWeight:600, cursor:"pointer",
+                  }}>
+                    {s.time}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {reschedMsg && (
+              <p style={{ color:C.red, fontSize:12, marginTop:12, textAlign:"center" }}>
+                {reschedMsg}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <button onClick={onRestart} style={{
         background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
-        border:"none", borderRadius:12, padding:"14px 32px",
+        border:"none", borderRadius:12, padding:"14px 40px",
         color:"#000", fontWeight:800, fontSize:14,
-        cursor:"pointer", letterSpacing:.5,
+        cursor:"pointer", letterSpacing:.5, marginTop:4,
       }}>
         Volver al inicio
       </button>
@@ -522,6 +856,8 @@ export default function BookingFlow({ shopSlug }) {
   const [selSlot,       setSelSlot]       = useState(null);
   const [selDate,       setSelDate]       = useState(todayStr());
   const [form,          setForm]          = useState({ full_name:"", dni:"", whatsapp:"" });
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [activeApptId,  setActiveApptId]  = useState(null);
   const [booking,       setBooking]       = useState(false);
   const [bookError,     setBookError]     = useState("");
   const [successData,   setSuccessData]   = useState(null);
@@ -558,8 +894,13 @@ export default function BookingFlow({ shopSlug }) {
       setBookError("Completá todos los campos");
       return;
     }
+    if (!termsAccepted) {
+      setBookError("Debés aceptar los Términos y Condiciones");
+      return;
+    }
     setBooking(true);
     setBookError("");
+    setActiveApptId(null);
     try {
       const res  = await fetch(`${API}/appointments/book`, {
         method: "POST",
@@ -570,11 +911,18 @@ export default function BookingFlow({ shopSlug }) {
           full_name:      full_name.trim(),
           dni:            dni.replace(/\./g,"").trim(),
           whatsapp:       whatsapp.trim(),
+          terms_accepted: true,
         }),
       });
       const json = await res.json();
+      if (res.status === 409 && json.active_appt_id) {
+        setActiveApptId(json.active_appt_id);
+        setBookError(json.error);
+        return;
+      }
       if (!res.ok) throw new Error(json.error || "Error al reservar");
-      setSuccessData(json.appointment);
+      // Enriquecer con datos del barber_id para la pantalla de reprogramación
+      setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
       setStep(4);
     } catch (e) {
       setBookError(e.message);
@@ -590,6 +938,8 @@ export default function BookingFlow({ shopSlug }) {
     setSelSlot(null);
     setSelDate(todayStr());
     setForm({ full_name:"", dni:"", whatsapp:"" });
+    setTermsAccepted(false);
+    setActiveApptId(null);
     setSuccessData(null);
     setBookError("");
   };
@@ -759,10 +1109,17 @@ export default function BookingFlow({ shopSlug }) {
           onSubmit={handleBook}
           loading={booking}
           error={bookError}
+          termsAccepted={termsAccepted}
+          onTermsChange={setTermsAccepted}
+          activeApptId={activeApptId}
         />
       )}
       {step === 4 && (
-        <SuccessStep appt={successData} onRestart={restart} />
+        <SuccessStep
+          appt={successData}
+          dni={form.dni}
+          onRestart={restart}
+        />
       )}
 
       </div>{/* end maxWidth container */}
