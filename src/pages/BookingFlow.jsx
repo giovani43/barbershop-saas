@@ -235,8 +235,11 @@ function ServiceStep({ services, selected, onSelect }) {
           ⚠ Aviso importante
         </p>
         <p style={{ color:"#ccc", fontSize:12, margin:0, lineHeight:1.5 }}>
-          La <strong style={{color:C.text}}>ausencia al turno</strong> tiene un valor de <strong style={{color:C.text}}>$6.000</strong>.
-          La tolerancia de demora es de <strong style={{color:C.text}}>8 minutos</strong>.
+          La <strong style={{color:C.text}}>ausencia al turno</strong> tiene un cargo del{" "}
+          <strong style={{color:C.text}}>30% del servicio reservado</strong>
+          {selected ? <> ({fmtPrice(Math.round(selected.price * 0.30))})</> : null}.
+          Tolerancia de llegada: <strong style={{color:C.text}}>8 minutos</strong>.
+          Cancelación gratuita hasta <strong style={{color:C.text}}>90 min antes</strong>.
         </p>
       </div>
     </div>
@@ -523,19 +526,33 @@ function ConfirmStep({
 
 // ── Step 5: Success ───────────────────────────────────────────────────────────
 function SuccessStep({ appt, dni, onRestart }) {
-  const [cancelState,  setCancelState]  = useState("idle");   // idle | confirming | loading | done | error
-  const [cancelMsg,    setCancelMsg]    = useState("");
+  const [cancelState,    setCancelState]    = useState("idle"); // idle|confirming|loading|done|error
+  const [cancelMsg,      setCancelMsg]      = useState("");
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [reschedSlots, setReschedSlots] = useState([]);
-  const [reschedDate,  setReschedDate]  = useState(todayStr());
+  const [reschedSlots,   setReschedSlots]   = useState([]);
+  const [reschedDate,    setReschedDate]    = useState(todayStr());
   const [reschedLoading, setReschedLoading] = useState(false);
-  const [reschedMsg,   setReschedMsg]   = useState("");
-  const [newAppt,      setNewAppt]      = useState(null);     // after successful reschedule
+  const [reschedMsg,     setReschedMsg]     = useState("");
+  const [newAppt,        setNewAppt]        = useState(null);
+  // Flags fetched from server (not present in POST /book response)
+  const [apptDetail,     setApptDetail]     = useState(null);
+
+  useEffect(() => {
+    if (!appt?.id) return;
+    fetch(`${API}/appointments/${appt.id}`)
+      .then(r => r.json())
+      .then(d => setApptDetail(d))
+      .catch(() => {});
+  }, [appt?.id]);
 
   if (!appt) return null;
 
   const { id, booking_code, qr_token, barber_name, service_name, price,
-          absence_fee, date, time, can_cancel, can_reschedule } = appt;
+          absence_fee, date, time } = appt;
+
+  // can_cancel / can_reschedule come from the server fetch, with safe defaults
+  const can_cancel    = apptDetail?.can_cancel    ?? false;
+  const can_reschedule = apptDetail?.can_reschedule ?? false;
 
   const displayAppt = newAppt || appt;
 
