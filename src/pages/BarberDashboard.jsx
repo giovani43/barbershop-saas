@@ -33,7 +33,7 @@ function Avatar({ name }) {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ label, value, color }) {
   return (
     <div style={{
       background: "#111", border: "1px solid #1e1e1e",

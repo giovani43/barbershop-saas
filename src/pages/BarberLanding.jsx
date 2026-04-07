@@ -158,9 +158,10 @@ export default function BarberLanding({ barberId, barberName, onBack }) {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(false); // eslint-disable-line no-unused-vars
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true); setVisible(false);
     fetch(`${API_BASE}/appointments/day?barber_id=${BARBER_ID_USE}&date=${selectedDate}`)
       .then(r => r.json())

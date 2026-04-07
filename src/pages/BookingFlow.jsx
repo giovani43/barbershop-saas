@@ -254,7 +254,7 @@ function SlotStep({ barberId, selectedDate, onDateChange, selectedSlot, onSlotSe
 
   useEffect(() => {
     if (!barberId) return;
-    setLoading(true);
+    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
     fetch(`${API}/appointments/day?barber_id=${barberId}&date=${selectedDate}`)
       .then(r => r.json())
       .then(d => { setSlots(d.slots || []); setLoading(false); })
@@ -547,7 +547,7 @@ function SuccessStep({ appt, dni, onRestart }) {
 
   if (!appt) return null;
 
-  const { id, booking_code, qr_token, barber_name, service_name, price,
+  const { id, booking_code, barber_name, service_name, price,
           absence_fee, date, time } = appt;
 
   // can_cancel / can_reschedule come from the server fetch, with safe defaults

@@ -80,7 +80,7 @@ function Badge({ status }) {
 }
 
 // ── Dashboard tab ─────────────────────────────────────────────────────────────
-function DashboardTab({ token, shop }) {
+function DashboardTab({ token }) {
   const [data,       setData]       = useState(null);
   const [date,       setDate]       = useState(() => new Date().toISOString().slice(0,10));
   const [loading,    setLoading]    = useState(false);
@@ -238,7 +238,7 @@ function DashboardTab({ token, shop }) {
 }
 
 // ── Barbers tab ───────────────────────────────────────────────────────────────
-function BarbersTab({ token, shop }) {
+function BarbersTab({ token }) {
   const [barbers,  setBarbers]  = useState([]);
   const [editing,  setEditing]  = useState(null); // null | {} | barber object
   const [saving,   setSaving]   = useState(false);
@@ -686,7 +686,7 @@ const TABS = [
 ];
 
 export default function AdminPanel({ token: initialToken, shop: initialShop, onLogout }) {
-  const [token, setToken] = useState(initialToken);
+  const [token] = useState(initialToken);
   const [shop,  setShop]  = useState(initialShop);
   const [tab,   setTab]   = useState("dashboard");
 
