@@ -152,7 +152,7 @@ function DashboardTab({ token }) {
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
               <tr>
-                {["Hora","Código","Cliente","Servicio","Precio","Estado",""].map(h => (
+                {["Hora","Código","Cliente","DNI","Servicio","Precio","Estado",""].map(h => (
                   <th key={h} style={{
                     color:C.muted, fontWeight:600, padding:"8px 10px", textAlign:"left",
                     borderBottom:`1px solid ${C.border}`, whiteSpace:"nowrap",
@@ -188,6 +188,10 @@ function DashboardTab({ token }) {
                         WhatsApp ↗
                       </a>
                     )}
+                  </td>
+
+                  <td style={{ padding:"9px 10px", color:C.muted, fontSize:12, whiteSpace:"nowrap" }}>
+                    {r.client_dni || "—"}
                   </td>
 
                   <td style={{ padding:"9px 10px", color:C.muted }}>{r.service_name}</td>
