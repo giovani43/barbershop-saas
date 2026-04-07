@@ -862,6 +862,13 @@ function SuccessStep({ appt, dni, onRestart }) {
       }}>
         Volver al inicio
       </button>
+
+      <a href="/mi-turno" style={{
+        color:C.muted, fontSize:12, textDecoration:"underline",
+        marginTop:16, cursor:"pointer",
+      }}>
+        Ver mi turno más tarde
+      </a>
     </div>
   );
 }

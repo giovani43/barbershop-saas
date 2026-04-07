@@ -6,6 +6,7 @@ import AdminLogin      from "./pages/AdminLogin";
 import AdminPanel      from "./pages/AdminPanel";
 import TerminosPage    from "./pages/TerminosPage";
 import VerifyPage      from "./pages/VerifyPage";
+import MiTurnoPage     from "./pages/MiTurnoPage";
 
 function getPath() {
   return window.location.pathname;
@@ -22,6 +23,9 @@ export default function App() {
 
   // Términos y condiciones
   if (path === "/terminos") return <TerminosPage />;
+
+  // Mi turno — consulta por WhatsApp
+  if (path === "/mi-turno") return <MiTurnoPage />;
 
   // Barber dashboard (login + panel)
   if (path === "/barber" || path === "/dashboard") return <BarberDashboard />;
