@@ -79,6 +79,435 @@ function BackBtn({ onClick, label = "Atrás" }) {
   );
 }
 
+// ── Step 0: Identify (DNI lookup / register) + Mis Turnos ────────────────────
+
+function MisTurnosPanel({ userData, dni, onBack }) {
+  const { active_appt: initActive, history } = userData;
+  const [active, setActive]       = useState(initActive);
+  const [cancelState, setCancelState] = useState("idle"); // idle|confirming|loading|done|error
+  const [cancelMsg,   setCancelMsg]   = useState("");
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [reschedDate, setReschedDate] = useState(todayStr());
+  const [reschedSlots,setReschedSlots]= useState([]);
+  const [reschedLoad, setReschedLoad] = useState(false);
+  const [reschedMsg,  setReschedMsg]  = useState("");
+
+  const STATUS_LABEL = {
+    booked:"Reservado", rescheduled:"Reprogramado",
+    completed:"Completado", cancelled:"Cancelado", no_show:"No asistió",
+  };
+  const STATUS_COLOR = {
+    booked: C.green, rescheduled:"#f59e0b",
+    completed: C.muted, cancelled: C.red, no_show: C.red,
+  };
+
+  const doCancel = async () => {
+    setCancelState("loading");
+    try {
+      const res  = await fetch(`${API}/appointments/${active.id}/cancel`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ dni: dni.replace(/\./g,"").trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error");
+      setCancelState("done");
+      setCancelMsg("Turno cancelado correctamente.");
+      setActive(null);
+    } catch(e) { setCancelState("error"); setCancelMsg(e.message); }
+  };
+
+  const loadReschedSlots = async (d) => {
+    setReschedLoad(true);
+    try {
+      const res  = await fetch(`${API}/appointments/day?barber_id=${active.barber_id}&date=${d}`);
+      const json = await res.json();
+      setReschedSlots((json.slots||[]).filter(s=>s.status==="available"));
+    } catch { setReschedSlots([]); }
+    finally  { setReschedLoad(false); }
+  };
+
+  const doReschedule = async (slotId) => {
+    setReschedLoad(true); setReschedMsg("");
+    try {
+      const res  = await fetch(`${API}/appointments/${active.id}/reschedule`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ dni: dni.replace(/\./g,"").trim(), new_slot_id: slotId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error");
+      setActive(prev => ({ ...prev, ...json.appointment, can_cancel:true, can_reschedule:false }));
+      setReschedOpen(false);
+      setReschedMsg("¡Turno reprogramado!");
+    } catch(e) { setReschedMsg(e.message); }
+    finally    { setReschedLoad(false); }
+  };
+
+  return (
+    <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease" }}>
+      <button onClick={onBack} style={{
+        background:"none", border:"none", cursor:"pointer",
+        color:C.muted, fontSize:13, padding:"12px 0 16px",
+        display:"flex", alignItems:"center", gap:6,
+      }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Volver
+      </button>
+
+      <h2 style={{ color:C.text, fontSize:20, fontWeight:800, margin:"0 0 4px" }}>Mis turnos</h2>
+      <p style={{ color:C.muted, fontSize:12, margin:"0 0 24px" }}>DNI {dni}</p>
+
+      {/* Turno activo */}
+      {active && cancelState !== "done" && (
+        <div style={{
+          background:C.card, border:`1px solid ${C.goldBorder}`,
+          borderRadius:16, padding:"16px 18px", marginBottom:20,
+        }}>
+          <p style={{ color:C.gold, fontSize:10, fontWeight:700, letterSpacing:2,
+                      textTransform:"uppercase", margin:"0 0 10px" }}>Turno activo</p>
+
+          {/* QR */}
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:14 }}>
+            <div style={{ background:"#fff", borderRadius:12, padding:8, display:"inline-block" }}>
+              <img src={`${API}/appointments/${active.id}/qr`} alt="QR"
+                   style={{ width:130, height:130, display:"block" }} />
+            </div>
+          </div>
+          <div style={{ textAlign:"center", marginBottom:14 }}>
+            <a href={`${API}/appointments/${active.id}/qr`}
+               download={`turno-${active.booking_code}.png`}
+               style={{ color:C.muted, fontSize:11, textDecoration:"underline" }}>
+              Descargar QR
+            </a>
+          </div>
+
+          {/* Badge código */}
+          <div style={{
+            background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+            borderRadius:8, padding:"5px 14px", marginBottom:14,
+            display:"inline-flex", alignItems:"center", gap:8,
+          }}>
+            <span style={{ color:C.muted, fontSize:11 }}>Código</span>
+            <span style={{ color:C.gold, fontSize:17, fontWeight:800 }}>{active.booking_code||"—"}</span>
+          </div>
+
+          {/* Detalles */}
+          {[
+            ["Barbero",  active.barber_name],
+            ["Servicio", active.service_name],
+            ["Precio",   fmtPrice(active.price)],
+            ["Fecha",    active.date],
+            ["Hora",     active.time],
+          ].map(([k,v]) => (
+            <div key={k} style={{ display:"flex", justifyContent:"space-between",
+                                  padding:"6px 0", borderBottom:`1px solid ${C.border}` }}>
+              <span style={{ color:C.muted, fontSize:12 }}>{k}</span>
+              <span style={{ color:C.text,  fontSize:12, fontWeight:600 }}>{v}</span>
+            </div>
+          ))}
+
+          {/* Acciones */}
+          {cancelState === "error" && (
+            <p style={{ color:C.red, fontSize:12, marginTop:10 }}>{cancelMsg}</p>
+          )}
+          {cancelState === "confirming" ? (
+            <div style={{ marginTop:14, display:"flex", gap:8 }}>
+              <button onClick={() => setCancelState("idle")} style={{
+                flex:1, padding:"10px", background:"transparent",
+                border:`1px solid ${C.border}`, borderRadius:10, color:C.muted, fontSize:13, cursor:"pointer",
+              }}>Volver</button>
+              <button onClick={doCancel} style={{
+                flex:1, padding:"10px",
+                background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)",
+                borderRadius:10, color:C.red, fontWeight:700, fontSize:13, cursor:"pointer",
+              }}>Confirmar</button>
+            </div>
+          ) : (
+            <div style={{ marginTop:14, display:"flex", gap:8 }}>
+              {active.can_cancel && (
+                <button onClick={() => setCancelState("confirming")} style={{
+                  flex:1, padding:"10px",
+                  background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)",
+                  borderRadius:10, color:C.red, fontWeight:700, fontSize:13, cursor:"pointer",
+                }}>Cancelar</button>
+              )}
+              {active.can_reschedule && !reschedMsg.includes("!") && (
+                <button onClick={() => { setReschedOpen(true); loadReschedSlots(reschedDate); }} style={{
+                  flex:1, padding:"10px",
+                  background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+                  borderRadius:10, color:C.gold, fontWeight:700, fontSize:13, cursor:"pointer",
+                }}>Reprogramar</button>
+              )}
+            </div>
+          )}
+          {reschedMsg && (
+            <p style={{ color: reschedMsg.includes("!") ? C.green : C.red,
+                        fontSize:12, marginTop:10, textAlign:"center" }}>{reschedMsg}</p>
+          )}
+        </div>
+      )}
+      {cancelState === "done" && (
+        <div style={{
+          background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.3)",
+          borderRadius:12, padding:"14px 16px", marginBottom:20, textAlign:"center",
+        }}>
+          <p style={{ color:C.green, fontWeight:700, fontSize:14, margin:"0 0 2px" }}>Turno cancelado</p>
+          <p style={{ color:C.muted, fontSize:12, margin:0 }}>{cancelMsg}</p>
+        </div>
+      )}
+      {!active && !cancelState.includes("done") && (
+        <p style={{ color:C.muted, fontSize:13, marginBottom:20 }}>No tenés un turno activo.</p>
+      )}
+
+      {/* Historial */}
+      <h3 style={{ color:C.text, fontSize:14, fontWeight:700, margin:"0 0 12px" }}>
+        Historial
+      </h3>
+      {history.length === 0 ? (
+        <p style={{ color:C.muted, fontSize:13 }}>Nunca realizaste una reserva en MVZ Barbería.</p>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {history.map(h => (
+            <div key={h.id} style={{
+              background:C.card, border:`1px solid ${C.border}`,
+              borderRadius:12, padding:"12px 14px",
+              display:"flex", justifyContent:"space-between", alignItems:"center",
+            }}>
+              <div>
+                <p style={{ color:C.text, fontSize:13, fontWeight:600, margin:"0 0 2px" }}>
+                  {h.service_name}
+                </p>
+                <p style={{ color:C.muted, fontSize:11, margin:0 }}>
+                  {h.date} · {h.barber_name} · {fmtPrice(h.price)}
+                </p>
+              </div>
+              <span style={{
+                color: STATUS_COLOR[h.status] || C.muted,
+                background:"rgba(255,255,255,0.04)",
+                border:`1px solid ${STATUS_COLOR[h.status] || C.border}22`,
+                borderRadius:20, padding:"3px 9px", fontSize:10, fontWeight:700,
+              }}>
+                {STATUS_LABEL[h.status] || h.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reschedule modal */}
+      {reschedOpen && (
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,0.85)",
+          display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100,
+        }}>
+          <div style={{
+            background:"#111", borderRadius:"20px 20px 0 0",
+            padding:"24px 20px 36px", width:"100%", maxWidth:480,
+            maxHeight:"75vh", overflowY:"auto",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <h3 style={{ color:C.text, fontSize:16, fontWeight:700, margin:0 }}>Reprogramar</h3>
+              <button onClick={() => setReschedOpen(false)} style={{
+                background:"transparent", border:"none", color:C.muted, fontSize:22, cursor:"pointer",
+              }}>×</button>
+            </div>
+            <input type="date" value={reschedDate}
+              onChange={e => { setReschedDate(e.target.value); loadReschedSlots(e.target.value); }}
+              style={{
+                width:"100%", boxSizing:"border-box",
+                background:"#0a0a0a", border:`1.5px solid ${C.border}`,
+                borderRadius:8, padding:"10px 12px", color:C.text, fontSize:14,
+                outline:"none", marginBottom:16,
+              }}
+            />
+            {reschedLoad ? (
+              <p style={{ color:C.muted, textAlign:"center" }}>Cargando...</p>
+            ) : reschedSlots.length === 0 ? (
+              <p style={{ color:C.muted, textAlign:"center", fontSize:13 }}>Sin horarios disponibles</p>
+            ) : (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {reschedSlots.map(s => (
+                  <button key={s.id} onClick={() => doReschedule(s.id)} style={{
+                    background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+                    borderRadius:8, padding:"10px 16px",
+                    color:C.gold, fontWeight:700, fontSize:14, cursor:"pointer",
+                  }}>{s.time}</button>
+                ))}
+              </div>
+            )}
+            {reschedMsg && <p style={{ color:C.red, fontSize:12, marginTop:12 }}>{reschedMsg}</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IdentifyStep({ onIdentified }) {
+  const [dni,     setDni]     = useState("");
+  const [mode,    setMode]    = useState("idle"); // idle|loading|notfound|found|misTurnos
+  const [regName, setRegName] = useState("");
+  const [regWa,   setRegWa]   = useState("");
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState("");
+  const [apptData,setApptData]= useState(null);
+
+  const cleanDni = () => dni.replace(/\./g,"").trim();
+
+  const lookup = async (forReserva) => {
+    if (!cleanDni()) { setError("Ingresá tu DNI"); return; }
+    setError(""); setMode("loading");
+    try {
+      const res  = await fetch(`${API}/users/by-dni?dni=${encodeURIComponent(cleanDni())}`);
+      const json = await res.json();
+      if (res.status === 404) {
+        if (forReserva) { setMode("notfound"); }
+        else { setError("No encontramos una cuenta con ese DNI."); setMode("idle"); }
+        return;
+      }
+      if (!res.ok) throw new Error(json.error || "Error");
+      setApptData(json);
+      if (forReserva) {
+        if (json.active_appt) {
+          setError(`Ya tenés un turno activo el ${json.active_appt.date} a las ${json.active_appt.time}. Cancelalo antes de reservar.`);
+          setMode("idle");
+        } else {
+          onIdentified(json.user);
+        }
+      } else {
+        setMode("misTurnos");
+      }
+    } catch(e) { setError(e.message); setMode("idle"); }
+  };
+
+  const register = async () => {
+    if (!regName.trim() || !regWa.trim()) { setError("Nombre y WhatsApp son obligatorios"); return; }
+    setSaving(true); setError("");
+    try {
+      const res  = await fetch(`${API}/users/register`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ dni: cleanDni(), name: regName.trim(), whatsapp: regWa.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) { onIdentified(json.user); return; }
+        throw new Error(json.error || "Error al registrar");
+      }
+      onIdentified(json.user);
+    } catch(e) { setError(e.message); }
+    finally    { setSaving(false); }
+  };
+
+  if (mode === "misTurnos" && apptData) {
+    return (
+      <MisTurnosPanel
+        userData={apptData}
+        dni={cleanDni()}
+        onBack={() => { setMode("idle"); setApptData(null); }}
+      />
+    );
+  }
+
+  return (
+    <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease" }}>
+      <h2 style={{ color:C.text, fontSize:22, fontWeight:700, margin:"16px 0 4px" }}>
+        Bienvenido
+      </h2>
+      <p style={{ color:C.muted, fontSize:13, marginBottom:24 }}>
+        Ingresá tu DNI para continuar
+      </p>
+
+      <label style={{ color:C.muted, fontSize:12, display:"block", marginBottom:5 }}>DNI</label>
+      <input
+        type="tel" value={dni} placeholder="Sin puntos, ej: 38123456"
+        onChange={e => { setDni(e.target.value); setError(""); setMode("idle"); }}
+        style={{
+          width:"100%", boxSizing:"border-box",
+          background:C.card, border:`1.5px solid ${C.border}`,
+          borderRadius:10, padding:"13px 14px",
+          color:C.text, fontSize:15, outline:"none", marginBottom:14,
+        }}
+        onFocus={e => { e.target.style.borderColor = C.gold; }}
+        onBlur={e  => { e.target.style.borderColor = C.border; }}
+      />
+
+      {mode === "notfound" && (
+        <div style={{
+          background:C.card, border:`1px solid ${C.border}`,
+          borderRadius:14, padding:"16px 18px", marginBottom:14,
+          animation:"fadeUp .3s ease",
+        }}>
+          <p style={{ color:C.text, fontSize:14, fontWeight:700, margin:"0 0 4px" }}>
+            Primera vez por acá
+          </p>
+          <p style={{ color:C.muted, fontSize:12, margin:"0 0 14px" }}>
+            Registrate para poder reservar
+          </p>
+          {[
+            { label:"Nombre completo", val:regName, set:setRegName, ph:"Juan García", type:"text" },
+            { label:"WhatsApp",        val:regWa,   set:setRegWa,   ph:"+549 11 1234-5678", type:"tel" },
+          ].map(({ label, val, set, ph, type }) => (
+            <div key={label} style={{ marginBottom:12 }}>
+              <label style={{ color:C.muted, fontSize:12, display:"block", marginBottom:4 }}>{label}</label>
+              <input type={type} value={val} placeholder={ph} onChange={e => set(e.target.value)}
+                style={{
+                  width:"100%", boxSizing:"border-box",
+                  background:"#0a0a0a", border:`1.5px solid ${C.border}`,
+                  borderRadius:9, padding:"12px 14px",
+                  color:C.text, fontSize:14, outline:"none",
+                }}
+                onFocus={e => { e.target.style.borderColor = C.gold; }}
+                onBlur={e  => { e.target.style.borderColor = C.border; }}
+              />
+            </div>
+          ))}
+          {error && <p style={{ color:C.red, fontSize:12, marginBottom:10 }}>{error}</p>}
+          <button onClick={register} disabled={saving} style={{
+            width:"100%", padding:"13px",
+            background: saving ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+            border:"none", borderRadius:10,
+            color: saving ? C.muted : "#000",
+            fontWeight:800, fontSize:14, cursor: saving ? "default" : "pointer",
+          }}>
+            {saving ? "Registrando..." : "Registrarme y continuar"}
+          </button>
+        </div>
+      )}
+
+      {mode !== "notfound" && (
+        <>
+          {error && <p style={{ color:C.red, fontSize:13, marginBottom:12 }}>{error}</p>}
+          <button
+            onClick={() => lookup(true)}
+            disabled={mode === "loading"}
+            style={{
+              width:"100%", padding:"14px",
+              background: mode==="loading" ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+              border:"none", borderRadius:12,
+              color: mode==="loading" ? C.muted : "#000",
+              fontWeight:800, fontSize:15, cursor: mode==="loading" ? "default" : "pointer",
+              marginBottom:10,
+            }}
+          >
+            {mode === "loading" ? "Buscando..." : "Reservar turno"}
+          </button>
+          <button
+            onClick={() => lookup(false)}
+            disabled={mode === "loading"}
+            style={{
+              width:"100%", padding:"13px",
+              background:"transparent", border:`1px solid ${C.border}`,
+              borderRadius:12, color:C.muted,
+              fontWeight:600, fontSize:14, cursor:"pointer",
+            }}
+          >
+            Mis turnos
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Step 1: Barber select ─────────────────────────────────────────────────────
 function BarberStep({ barbers, onSelect }) {
   return (
@@ -352,17 +781,11 @@ function SlotGroup({ label, slots, selected, onSelect }) {
 
 // ── Step 4: Confirm ───────────────────────────────────────────────────────────
 function ConfirmStep({
-  barber, service, slot, date, form, onChange,
+  barber, service, slot, date, user,
   onSubmit, loading, error,
   termsAccepted, onTermsChange,
   activeApptId,
 }) {
-  const fields = [
-    { key:"full_name", label:"Nombre completo",      placeholder:"Juan García",          type:"text" },
-    { key:"dni",       label:"DNI",                   placeholder:"Sin puntos: 12345678", type:"tel"  },
-    { key:"whatsapp",  label:"WhatsApp",              placeholder:"+549 11 1234-5678",    type:"tel"  },
-  ];
-
   const absenceFee = Math.round(service.price * 0.30);
   const canSubmit  = termsAccepted && !loading && !activeApptId;
 
@@ -442,28 +865,25 @@ function ConfirmStep({
         </p>
       </div>
 
-      {/* Form */}
-      {fields.map(f => (
-        <div key={f.key} style={{ marginBottom:14 }}>
-          <label style={{ color:C.muted, fontSize:12, display:"block", marginBottom:5 }}>
-            {f.label}
-          </label>
-          <input
-            type={f.type}
-            placeholder={f.placeholder}
-            value={form[f.key]}
-            onChange={e => onChange(f.key, e.target.value)}
-            style={{
-              width:"100%", boxSizing:"border-box",
-              background:C.card, border:`1.5px solid ${C.border}`,
-              borderRadius:10, padding:"13px 14px",
-              color:C.text, fontSize:15, outline:"none",
-            }}
-            onFocus={e => { e.target.style.borderColor = C.gold; }}
-            onBlur={e  => { e.target.style.borderColor = C.border; }}
-          />
+      {/* Usuario identificado */}
+      <div style={{
+        background:C.card, border:`1px solid ${C.border}`,
+        borderRadius:12, padding:"12px 16px", marginBottom:20,
+        display:"flex", alignItems:"center", gap:12,
+      }}>
+        <div style={{
+          width:38, height:38, borderRadius:"50%",
+          background:`linear-gradient(135deg, #D4AF37, #7A5C10)`,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          fontSize:14, fontWeight:800, color:"#000", flexShrink:0,
+        }}>
+          {user.name.split(" ").map(w=>w[0]).slice(0,2).join("")}
         </div>
-      ))}
+        <div>
+          <p style={{ color:C.text, fontWeight:700, fontSize:14, margin:0 }}>{user.name}</p>
+          <p style={{ color:C.muted, fontSize:11, margin:0 }}>DNI {user.dni} · {user.whatsapp}</p>
+        </div>
+      </div>
 
       {/* T&C checkbox */}
       <label style={{
@@ -878,12 +1298,13 @@ export default function BookingFlow({ shopSlug }) {
   const [shopData,  setShopData]  = useState(null);
   const [loading,   setLoading]   = useState(true);
 
+  // step 0=identify, 1=barber, 2=service, 3=slot, 4=confirm, 5=success
   const [step,          setStep]          = useState(0);
+  const [user,          setUser]          = useState(null);
   const [selBarber,     setSelBarber]     = useState(null);
   const [selService,    setSelService]    = useState(null);
   const [selSlot,       setSelSlot]       = useState(null);
   const [selDate,       setSelDate]       = useState(todayStr());
-  const [form,          setForm]          = useState({ full_name:"", dni:"", whatsapp:"" });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [activeApptId,  setActiveApptId]  = useState(null);
   const [booking,       setBooking]       = useState(false);
@@ -917,11 +1338,6 @@ export default function BookingFlow({ shopSlug }) {
   const { shop, barbers, services } = shopData;
 
   const handleBook = async () => {
-    const { full_name, dni, whatsapp } = form;
-    if (!full_name.trim() || !dni.trim() || !whatsapp.trim()) {
-      setBookError("Completá todos los campos");
-      return;
-    }
     if (!termsAccepted) {
       setBookError("Debés aceptar los Términos y Condiciones");
       return;
@@ -936,9 +1352,7 @@ export default function BookingFlow({ shopSlug }) {
         body: JSON.stringify({
           appointment_id: selSlot.id,
           service_id:     selService.id,
-          full_name:      full_name.trim(),
-          dni:            dni.replace(/\./g,"").trim(),
-          whatsapp:       whatsapp.trim(),
+          user_id:        user.id,
           terms_accepted: true,
         }),
       });
@@ -951,7 +1365,7 @@ export default function BookingFlow({ shopSlug }) {
       if (!res.ok) throw new Error(json.error || "Error al reservar");
       // Enriquecer con datos del barber_id para la pantalla de reprogramación
       setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
-      setStep(4);
+      setStep(5);
     } catch (e) {
       setBookError(e.message);
     } finally {
@@ -961,11 +1375,11 @@ export default function BookingFlow({ shopSlug }) {
 
   const restart = () => {
     setStep(0);
+    setUser(null);
     setSelBarber(null);
     setSelService(null);
     setSelSlot(null);
     setSelDate(todayStr());
-    setForm({ full_name:"", dni:"", whatsapp:"" });
     setTermsAccepted(false);
     setActiveApptId(null);
     setSuccessData(null);
@@ -1091,11 +1505,11 @@ export default function BookingFlow({ shopSlug }) {
         </svg>
       </a>
 
-      {/* Progress */}
-      {step < 4 && <Progress step={step + 1} />}
+      {/* Progress — solo pasos 1-4 (no en identify ni success) */}
+      {step >= 1 && step <= 4 && <Progress step={step} total={4} />}
 
-      {/* Step content */}
-      {step > 0 && step < 4 && (
+      {/* Back button */}
+      {step >= 1 && step <= 4 && (
         <BackBtn onClick={() => {
           if (step === 1) { setSelBarber(null); }
           if (step === 2) { setSelService(null); }
@@ -1105,35 +1519,40 @@ export default function BookingFlow({ shopSlug }) {
       )}
 
       {step === 0 && (
-        <BarberStep
-          barbers={barbers}
-          onSelect={b => { setSelBarber(b); setStep(1); }}
+        <IdentifyStep
+          onIdentified={u => { setUser(u); setStep(1); }}
+          shopSlug={shopSlug}
         />
       )}
       {step === 1 && (
-        <ServiceStep
-          services={services}
-          selected={selService}
-          onSelect={s => { setSelService(s); setStep(2); }}
+        <BarberStep
+          barbers={barbers}
+          onSelect={b => { setSelBarber(b); setStep(2); }}
         />
       )}
       {step === 2 && (
+        <ServiceStep
+          services={services}
+          selected={selService}
+          onSelect={s => { setSelService(s); setStep(3); }}
+        />
+      )}
+      {step === 3 && (
         <SlotStep
           barberId={selBarber?.id}
           selectedDate={selDate}
           onDateChange={d => { setSelDate(d); setSelSlot(null); }}
           selectedSlot={selSlot}
-          onSlotSelect={s => { setSelSlot(s); setStep(3); }}
+          onSlotSelect={s => { setSelSlot(s); setStep(4); }}
         />
       )}
-      {step === 3 && (
+      {step === 4 && (
         <ConfirmStep
           barber={selBarber}
           service={selService}
           slot={selSlot}
           date={selDate}
-          form={form}
-          onChange={(k, v) => setForm(f => ({ ...f, [k]: v }))}
+          user={user}
           onSubmit={handleBook}
           loading={booking}
           error={bookError}
@@ -1142,10 +1561,10 @@ export default function BookingFlow({ shopSlug }) {
           activeApptId={activeApptId}
         />
       )}
-      {step === 4 && (
+      {step === 5 && (
         <SuccessStep
           appt={successData}
-          dni={form.dni}
+          dni={user?.dni}
           onRestart={restart}
         />
       )}
