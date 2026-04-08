@@ -1386,13 +1386,13 @@ function SuccessStep({ appt, dni, onRestart }) {
 }
 
 // ── Main BookingFlow ──────────────────────────────────────────────────────────
-export default function BookingFlow({ shopSlug }) {
+export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode = "book" }) {
   const [shopData,  setShopData]  = useState(null);
   const [loading,   setLoading]   = useState(true);
 
   // step -1=splash, 0=identify, 1=barber, 2=service, 3=slot, 4=confirm, 5=success
-  const [step,          setStep]          = useState(-1);
-  const [entryMode,     setEntryMode]     = useState("book"); // "book" | "misTurnos"
+  const [step,          setStep]          = useState(startStep);
+  const [entryMode,     setEntryMode]     = useState(startEntryMode);
   const [user,          setUser]          = useState(null);
   const [selBarber,     setSelBarber]     = useState(null);
   const [selService,    setSelService]    = useState(null);
@@ -1467,8 +1467,8 @@ export default function BookingFlow({ shopSlug }) {
   };
 
   const restart = () => {
-    setStep(-1);
-    setEntryMode("book");
+    setStep(startStep);
+    setEntryMode(startEntryMode);
     setUser(null);
     setSelBarber(null);
     setSelService(null);
@@ -1605,8 +1605,8 @@ export default function BookingFlow({ shopSlug }) {
       {/* Back button */}
       {step >= 0 && step <= 4 && (
         <BackBtn onClick={() => {
-          if (step === 0) { setStep(-1); return; }
-          if (step === 1) { setSelBarber(null); }
+          if (step === 0) { setStep(startStep); return; }
+          if (step === 1) { setSelBarber(null); setUser(null); }
           if (step === 2) { setSelService(null); }
           if (step === 3) { setSelSlot(null); }
           setStep(s => s - 1);

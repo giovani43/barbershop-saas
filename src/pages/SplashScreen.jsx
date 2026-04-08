@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export default function SplashScreen({ onEnter }) {
+export default function SplashScreen({ onEnter, onMisTurnos }) {
   const [visible, setVisible] = useState(false);
   const [lineVisible, setLineVisible] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
@@ -188,7 +188,7 @@ export default function SplashScreen({ onEnter }) {
           </span>
         </div>
 
-        {/* Boton */}
+        {/* Botones */}
         <button onClick={onEnter} className="btn-gold" style={{
           width: "100%",
           background: "linear-gradient(135deg, #c9993c, #a07820)",
@@ -203,10 +203,31 @@ export default function SplashScreen({ onEnter }) {
           fontFamily: "'Montserrat', sans-serif",
           textTransform: "uppercase",
           transition: "all 0.3s ease",
-          marginBottom: 20,
+          marginBottom: 12,
           boxShadow: "0 4px 24px rgba(201,153,60,0.25)",
         }}>
           Ver Turnos Disponibles
+        </button>
+        <button onClick={onMisTurnos} style={{
+          width: "100%",
+          background: "transparent",
+          color: "#6b5a3a",
+          border: "1px solid rgba(201,153,60,0.25)",
+          borderRadius: 4,
+          padding: "14px 0",
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: "pointer",
+          letterSpacing: "0.15em",
+          fontFamily: "'Montserrat', sans-serif",
+          textTransform: "uppercase",
+          transition: "all 0.3s ease",
+          marginBottom: 20,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor="rgba(201,153,60,0.6)"; e.currentTarget.style.color="#c9993c"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor="rgba(201,153,60,0.25)"; e.currentTarget.style.color="#6b5a3a"; }}
+        >
+          Mis Turnos
         </button>
 
         {/* Redes sociales */}

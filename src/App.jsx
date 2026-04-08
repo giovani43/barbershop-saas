@@ -9,7 +9,9 @@ import VerifyPage      from "./pages/VerifyPage";
 import MiTurnoPage     from "./pages/MiTurnoPage";
 
 function getPath() {
-  return window.location.pathname;
+  // Normalize: strip trailing slash (except root "/")
+  const p = window.location.pathname;
+  return p.length > 1 ? p.replace(/\/$/, "") : p;
 }
 
 export default function App() {
@@ -27,8 +29,10 @@ export default function App() {
   // Mi turno — consulta por WhatsApp
   if (path === "/mi-turno") return <MiTurnoPage />;
 
-  // Barber dashboard (login + panel)
-  if (path === "/barber" || path === "/dashboard") return <BarberDashboard />;
+  // Barber dashboard — /barber y /barber/dashboard
+  if (path === "/barber" || path === "/barber/dashboard" || path === "/dashboard") {
+    return <BarberDashboard />;
+  }
 
   // QR verify — público, antes del guard de admin
   const verifyMatch = path.match(/^\/admin\/verify\/([^/]+)/);
@@ -37,7 +41,7 @@ export default function App() {
   // Admin panel
   if (path.startsWith("/admin")) return <AdminRoute />;
 
-  // Client booking flow — /shop/:shopSlug (barberSlug is handled inside BookingFlow)
+  // Client booking flow — /shop/:shopSlug
   const shopMatch = path.match(/^\/shop\/([^/]+)/);
   if (shopMatch) return <BookingFlow shopSlug={shopMatch[1]} />;
 
@@ -65,7 +69,22 @@ function AdminRoute() {
 
 // ── Splash + default shop ─────────────────────────────────────────────────────
 function SplashWithNav() {
-  const [entered, setEntered] = useState(false);
-  if (!entered) return <SplashScreen onEnter={() => setEntered(true)} />;
-  return <BookingFlow shopSlug="mvzbarberia" />;
+  // mode=null → show SplashScreen; mode="book"|"misTurnos" → show BookingFlow
+  const [mode, setMode] = useState(null);
+  if (!mode) {
+    return (
+      <SplashScreen
+        onEnter={() => setMode("book")}
+        onMisTurnos={() => setMode("misTurnos")}
+      />
+    );
+  }
+  // startStep=0 to skip BookingFlow's internal SplashStep (we already showed SplashScreen)
+  return (
+    <BookingFlow
+      shopSlug="mvzbarberia"
+      startStep={0}
+      startEntryMode={mode}
+    />
+  );
 }
