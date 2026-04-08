@@ -81,7 +81,7 @@ function BackBtn({ onClick, label = "Atrás" }) {
 
 // ── Step 0: Identify (DNI lookup / register) + Mis Turnos ────────────────────
 
-function MisTurnosPanel({ userData, dni, onBack }) {
+function MisTurnosPanel({ userData, dni, onBack, onClose }) {
   const { active_appt: initActive, history } = userData;
   const [active, setActive]       = useState(initActive);
   const [cancelState, setCancelState] = useState("idle"); // idle|confirming|loading|done|error
@@ -143,7 +143,31 @@ function MisTurnosPanel({ userData, dni, onBack }) {
   };
 
   return (
-    <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease" }}>
+    <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease", position:"relative" }}>
+
+      {/* X — cerrar y volver al splash */}
+      {onClose && (
+        <button onClick={onClose} style={{
+          position:"absolute", top:8, right:0,
+          width:44, height:44,
+          background:"transparent", border:`1px solid ${C.border}`,
+          borderRadius:"50%", cursor:"pointer",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          color:C.muted, transition:"border-color .15s, color .15s",
+          flexShrink:0,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor=C.goldBorder; e.currentTarget.style.color=C.text; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor=C.border;     e.currentTarget.style.color=C.muted; }}
+        aria-label="Cerrar"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      )}
+
       <button onClick={onBack} style={{
         background:"none", border:"none", cursor:"pointer",
         color:C.muted, fontSize:13, padding:"12px 0 16px",
@@ -416,7 +440,7 @@ function SplashStep({ shop, onBook, onMisTurnos }) {
 }
 
 // ── Step 0: Identify (DNI lookup / register) + Mis Turnos ────────────────────
-function IdentifyStep({ onIdentified, misTurnosFirst = false }) {
+function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
   const [dni,     setDni]     = useState("");
   const [mode,    setMode]    = useState("idle"); // idle|loading|notfound|found|misTurnos
   const [regName, setRegName] = useState("");
@@ -477,6 +501,7 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false }) {
         userData={apptData}
         dni={cleanDni()}
         onBack={() => { setMode("idle"); setApptData(null); }}
+        onClose={onGoHome}
       />
     );
   }
@@ -1386,7 +1411,7 @@ function SuccessStep({ appt, dni, onRestart }) {
 }
 
 // ── Main BookingFlow ──────────────────────────────────────────────────────────
-export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode = "book" }) {
+export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode = "book", onGoHome }) {
   const [shopData,  setShopData]  = useState(null);
   const [loading,   setLoading]   = useState(true);
 
@@ -1605,7 +1630,10 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       {/* Back button */}
       {step >= 0 && step <= 4 && (
         <BackBtn onClick={() => {
-          if (step === 0) { setStep(startStep); return; }
+          if (step === 0) {
+            if (onGoHome) { onGoHome(); } else { setStep(startStep); }
+            return;
+          }
           if (step === 1) { setSelBarber(null); setUser(null); }
           if (step === 2) { setSelService(null); }
           if (step === 3) { setSelSlot(null); }
@@ -1625,6 +1653,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           onIdentified={u => { setUser(u); setStep(1); }}
           misTurnosFirst={entryMode === "misTurnos"}
           shopSlug={shopSlug}
+          onGoHome={onGoHome ? onGoHome : () => setStep(startStep)}
         />
       )}
       {step === 1 && (

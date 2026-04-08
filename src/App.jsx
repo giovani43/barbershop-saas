@@ -85,6 +85,7 @@ function SplashWithNav() {
       shopSlug="mvzbarberia"
       startStep={0}
       startEntryMode={mode}
+      onGoHome={() => setMode(null)}
     />
   );
 }
