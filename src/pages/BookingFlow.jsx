@@ -342,7 +342,81 @@ function MisTurnosPanel({ userData, dni, onBack }) {
   );
 }
 
-function IdentifyStep({ onIdentified }) {
+// ── Splash screen ─────────────────────────────────────────────────────────────
+function SplashStep({ shop, onBook, onMisTurnos }) {
+  return (
+    <div style={{
+      minHeight:"80vh", display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center",
+      padding:"40px 24px 60px", animation:"fadeUp .4s ease",
+    }}>
+      {/* Logo */}
+      <div style={{
+        width:110, height:110, borderRadius:"50%",
+        overflow:"hidden", border:`3px solid ${C.goldBorder}`,
+        marginBottom:24, boxShadow:`0 0 40px rgba(212,175,55,0.18)`,
+        flexShrink:0,
+      }}>
+        <img src="/logo.jpg" alt="MVZ" style={{ width:"100%", height:"100%", objectFit:"cover" }}
+          onError={e => {
+            e.target.parentElement.style.background = `linear-gradient(135deg, #D4AF37, #7A5C10)`;
+            e.target.parentElement.style.display = "flex";
+            e.target.parentElement.style.alignItems = "center";
+            e.target.parentElement.style.justifyContent = "center";
+            e.target.style.display = "none";
+            e.target.parentElement.innerHTML += "<span style='font-size:28px;font-weight:800;color:#000'>MVZ</span>";
+          }}
+        />
+      </div>
+
+      {/* Name */}
+      <p style={{ color:C.gold, fontSize:11, fontWeight:700, letterSpacing:3,
+                  textTransform:"uppercase", margin:"0 0 8px", textAlign:"center" }}>
+        Reservas online
+      </p>
+      <h1 style={{ color:C.text, fontSize:28, fontWeight:900, margin:"0 0 8px",
+                   textAlign:"center", lineHeight:1.1 }}>
+        {shop.name}
+      </h1>
+      <p style={{ color:C.muted, fontSize:13, margin:"0 0 40px", textAlign:"center" }}>
+        Humboldt 689, CABA · Lun–Sáb 09:00–20:00
+      </p>
+
+      {/* CTA */}
+      <div style={{ width:"100%", maxWidth:340, display:"flex", flexDirection:"column", gap:12 }}>
+        <button onClick={onBook} style={{
+          width:"100%", padding:"16px",
+          background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+          border:"none", borderRadius:14,
+          color:"#000", fontSize:16, fontWeight:800,
+          cursor:"pointer", letterSpacing:.3,
+          boxShadow:`0 4px 20px rgba(212,175,55,0.3)`,
+          transition:"transform .15s, box-shadow .15s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform="translateY(-1px)"; e.currentTarget.style.boxShadow=`0 6px 28px rgba(212,175,55,0.4)`; }}
+        onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)";    e.currentTarget.style.boxShadow=`0 4px 20px rgba(212,175,55,0.3)`; }}
+        >
+          Ver turnos disponibles
+        </button>
+        <button onClick={onMisTurnos} style={{
+          width:"100%", padding:"14px",
+          background:"transparent", border:`1.5px solid ${C.border}`,
+          borderRadius:14, color:C.muted,
+          fontSize:15, fontWeight:600, cursor:"pointer",
+          transition:"border-color .15s, color .15s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor=C.goldBorder; e.currentTarget.style.color=C.text; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor=C.border;     e.currentTarget.style.color=C.muted; }}
+        >
+          Mis turnos
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 0: Identify (DNI lookup / register) + Mis Turnos ────────────────────
+function IdentifyStep({ onIdentified, misTurnosFirst = false }) {
   const [dni,     setDni]     = useState("");
   const [mode,    setMode]    = useState("idle"); // idle|loading|notfound|found|misTurnos
   const [regName, setRegName] = useState("");
@@ -410,10 +484,10 @@ function IdentifyStep({ onIdentified }) {
   return (
     <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease" }}>
       <h2 style={{ color:C.text, fontSize:22, fontWeight:700, margin:"16px 0 4px" }}>
-        Bienvenido
+        {misTurnosFirst ? "Mis turnos" : "Bienvenido"}
       </h2>
       <p style={{ color:C.muted, fontSize:13, marginBottom:24 }}>
-        Ingresá tu DNI para continuar
+        {misTurnosFirst ? "Ingresá tu DNI para ver tus turnos" : "Ingresá tu DNI para continuar"}
       </p>
 
       <label style={{ color:C.muted, fontSize:12, display:"block", marginBottom:5 }}>DNI</label>
@@ -476,32 +550,50 @@ function IdentifyStep({ onIdentified }) {
       {mode !== "notfound" && (
         <>
           {error && <p style={{ color:C.red, fontSize:13, marginBottom:12 }}>{error}</p>}
-          <button
-            onClick={() => lookup(true)}
-            disabled={mode === "loading"}
-            style={{
-              width:"100%", padding:"14px",
-              background: mode==="loading" ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
-              border:"none", borderRadius:12,
-              color: mode==="loading" ? C.muted : "#000",
-              fontWeight:800, fontSize:15, cursor: mode==="loading" ? "default" : "pointer",
-              marginBottom:10,
-            }}
-          >
-            {mode === "loading" ? "Buscando..." : "Reservar turno"}
-          </button>
-          <button
-            onClick={() => lookup(false)}
-            disabled={mode === "loading"}
-            style={{
-              width:"100%", padding:"13px",
-              background:"transparent", border:`1px solid ${C.border}`,
-              borderRadius:12, color:C.muted,
-              fontWeight:600, fontSize:14, cursor:"pointer",
-            }}
-          >
-            Mis turnos
-          </button>
+          {!misTurnosFirst && (
+            <button
+              onClick={() => lookup(true)}
+              disabled={mode === "loading"}
+              style={{
+                width:"100%", padding:"14px",
+                background: mode==="loading" ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                border:"none", borderRadius:12,
+                color: mode==="loading" ? C.muted : "#000",
+                fontWeight:800, fontSize:15, cursor: mode==="loading" ? "default" : "pointer",
+                marginBottom:10,
+              }}
+            >
+              {mode === "loading" ? "Buscando..." : "Reservar turno"}
+            </button>
+          )}
+          {misTurnosFirst ? (
+            <button
+              onClick={() => lookup(false)}
+              disabled={mode === "loading"}
+              style={{
+                width:"100%", padding:"14px",
+                background: mode==="loading" ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                border:"none", borderRadius:12,
+                color: mode==="loading" ? C.muted : "#000",
+                fontWeight:800, fontSize:15, cursor: mode==="loading" ? "default" : "pointer",
+              }}
+            >
+              {mode === "loading" ? "Buscando..." : "Ver mis turnos"}
+            </button>
+          ) : (
+            <button
+              onClick={() => lookup(false)}
+              disabled={mode === "loading"}
+              style={{
+                width:"100%", padding:"13px",
+                background:"transparent", border:`1px solid ${C.border}`,
+                borderRadius:12, color:C.muted,
+                fontWeight:600, fontSize:14, cursor:"pointer",
+              }}
+            >
+              Mis turnos
+            </button>
+          )}
         </>
       )}
     </div>
@@ -1298,8 +1390,9 @@ export default function BookingFlow({ shopSlug }) {
   const [shopData,  setShopData]  = useState(null);
   const [loading,   setLoading]   = useState(true);
 
-  // step 0=identify, 1=barber, 2=service, 3=slot, 4=confirm, 5=success
-  const [step,          setStep]          = useState(0);
+  // step -1=splash, 0=identify, 1=barber, 2=service, 3=slot, 4=confirm, 5=success
+  const [step,          setStep]          = useState(-1);
+  const [entryMode,     setEntryMode]     = useState("book"); // "book" | "misTurnos"
   const [user,          setUser]          = useState(null);
   const [selBarber,     setSelBarber]     = useState(null);
   const [selService,    setSelService]    = useState(null);
@@ -1374,7 +1467,8 @@ export default function BookingFlow({ shopSlug }) {
   };
 
   const restart = () => {
-    setStep(0);
+    setStep(-1);
+    setEntryMode("book");
     setUser(null);
     setSelBarber(null);
     setSelService(null);
@@ -1509,8 +1603,9 @@ export default function BookingFlow({ shopSlug }) {
       {step >= 1 && step <= 4 && <Progress step={step} total={4} />}
 
       {/* Back button */}
-      {step >= 1 && step <= 4 && (
+      {step >= 0 && step <= 4 && (
         <BackBtn onClick={() => {
+          if (step === 0) { setStep(-1); return; }
           if (step === 1) { setSelBarber(null); }
           if (step === 2) { setSelService(null); }
           if (step === 3) { setSelSlot(null); }
@@ -1518,9 +1613,17 @@ export default function BookingFlow({ shopSlug }) {
         }} />
       )}
 
+      {step === -1 && (
+        <SplashStep
+          shop={shop}
+          onBook={() => { setEntryMode("book"); setStep(0); }}
+          onMisTurnos={() => { setEntryMode("misTurnos"); setStep(0); }}
+        />
+      )}
       {step === 0 && (
         <IdentifyStep
           onIdentified={u => { setUser(u); setStep(1); }}
+          misTurnosFirst={entryMode === "misTurnos"}
           shopSlug={shopSlug}
         />
       )}
