@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const API = "https://web-production-d26db.up.railway.app/api/v1";
 
@@ -1461,13 +1461,16 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       .catch(() => setLoading(false));
   }, [shopSlug]);
 
-  // Push a history entry when the user advances a step, so the browser
-  // back button can navigate backwards through the flow instead of leaving.
+  // Push a history entry ONLY when advancing forward, so the browser back
+  // button can navigate backwards through the flow instead of leaving.
+  // Using a ref to detect direction: only push when step increases.
+  const prevStepRef = useRef(startStep);
   useEffect(() => {
-    if (step > startStep && step < 5) {
+    if (step > prevStepRef.current && step < 5) {
       window.history.pushState({ bookingStep: step }, "");
     }
-  }, [step, startStep]);
+    prevStepRef.current = step;
+  }, [step]);
 
   // Intercept browser back button while inside an active booking step.
   useEffect(() => {
