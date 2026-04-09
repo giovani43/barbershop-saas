@@ -1461,6 +1461,27 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       .catch(() => setLoading(false));
   }, [shopSlug]);
 
+  // Push a history entry when the user advances a step, so the browser
+  // back button can navigate backwards through the flow instead of leaving.
+  useEffect(() => {
+    if (step > startStep && step < 5) {
+      window.history.pushState({ bookingStep: step }, "");
+    }
+  }, [step, startStep]);
+
+  // Intercept browser back button while inside an active booking step.
+  useEffect(() => {
+    const handlePop = () => {
+      if (step <= startStep || step === 5) return; // nothing to handle here
+      if (step === 1) { setSelBarber(null); setUser(null); }
+      if (step === 2) { setSelService(null); }
+      if (step === 3) { setSelSlot(null); }
+      setStep(s => s - 1);
+    };
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, [step, startStep]);
+
   if (loading) {
     return (
       <div style={{ minHeight:"100vh", background:C.bg, display:"flex",
