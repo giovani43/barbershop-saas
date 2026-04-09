@@ -233,35 +233,60 @@ function MisTurnosPanel({ userData, dni, onBack, onClose }) {
           {cancelState === "error" && (
             <p style={{ color:C.red, fontSize:12, marginTop:10 }}>{cancelMsg}</p>
           )}
-          {cancelState === "confirming" ? (
-            <div style={{ marginTop:14, display:"flex", gap:8 }}>
-              <button onClick={() => setCancelState("idle")} style={{
-                flex:1, padding:"10px", background:"transparent",
-                border:`1px solid ${C.border}`, borderRadius:10, color:C.muted, fontSize:13, cursor:"pointer",
-              }}>Volver</button>
-              <button onClick={doCancel} style={{
-                flex:1, padding:"10px",
-                background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)",
-                borderRadius:10, color:C.red, fontWeight:700, fontSize:13, cursor:"pointer",
-              }}>Confirmar</button>
+
+          {/* Ventana cerrada: no se puede cancelar ni reprogramar */}
+          {!active.can_cancel && cancelState !== "confirming" && cancelState !== "loading" && (
+            <div style={{
+              marginTop:14, background:"rgba(239,68,68,0.07)",
+              border:"1px solid rgba(239,68,68,0.25)",
+              borderRadius:10, padding:"10px 14px",
+            }}>
+              <p style={{ color:C.red, fontSize:12, margin:0, lineHeight:1.5 }}>
+                Ya no podés cancelar ni reprogramar. Faltan menos de 90 minutos para tu turno.
+                En caso de no presentarte se aplicará una multa del 30%
+                {active.absence_fee ? ` (${fmtPrice(active.absence_fee)})` : ""}.
+              </p>
             </div>
-          ) : (
+          )}
+
+          {cancelState === "confirming" ? (
+            <div style={{ marginTop:14 }}>
+              <p style={{ color:C.text, fontSize:13, marginBottom:12, textAlign:"center" }}>
+                ¿Confirmás la cancelación?<br/>
+                <span style={{ color:C.green, fontWeight:600 }}>No se aplicará ningún cargo.</span>
+              </p>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => setCancelState("idle")} style={{
+                  flex:1, padding:"10px", background:"transparent",
+                  border:`1px solid ${C.border}`, borderRadius:10, color:C.muted, fontSize:13, cursor:"pointer",
+                }}>Volver</button>
+                <button onClick={doCancel} style={{
+                  flex:1, padding:"10px",
+                  background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)",
+                  borderRadius:10, color:C.red, fontWeight:700, fontSize:13, cursor:"pointer",
+                }}>Sí, cancelar</button>
+              </div>
+            </div>
+          ) : cancelState !== "loading" && (
             <div style={{ marginTop:14, display:"flex", gap:8 }}>
               {active.can_cancel && (
                 <button onClick={() => setCancelState("confirming")} style={{
-                  flex:1, padding:"10px",
+                  flex:1, padding:"11px",
                   background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)",
                   borderRadius:10, color:C.red, fontWeight:700, fontSize:13, cursor:"pointer",
-                }}>Cancelar</button>
+                }}>Cancelar turno</button>
               )}
               {active.can_reschedule && !reschedMsg.includes("!") && (
                 <button onClick={() => { setReschedOpen(true); loadReschedSlots(reschedDate); }} style={{
-                  flex:1, padding:"10px",
-                  background:C.goldDim, border:`1px solid ${C.goldBorder}`,
-                  borderRadius:10, color:C.gold, fontWeight:700, fontSize:13, cursor:"pointer",
+                  flex:1, padding:"11px",
+                  background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.4)",
+                  borderRadius:10, color:"#60a5fa", fontWeight:700, fontSize:13, cursor:"pointer",
                 }}>Reprogramar</button>
               )}
             </div>
+          )}
+          {cancelState === "loading" && (
+            <p style={{ color:C.muted, fontSize:13, marginTop:12, textAlign:"center" }}>Procesando...</p>
           )}
           {reschedMsg && (
             <p style={{ color: reschedMsg.includes("!") ? C.green : C.red,
