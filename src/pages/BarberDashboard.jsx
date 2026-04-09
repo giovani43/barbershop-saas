@@ -208,15 +208,45 @@ function BarberPanel({ token, barber, onLogout }) {
     } catch {}
   };
 
-  const chargeAbsence = async (slotId) => {
+  const chargeAbsence = async (slot) => {
     if (!window.confirm("¿Registrar cargo por ausencia (30% del precio)?")) return;
     try {
-      const res  = await fetch(`${API}/barber/appointments/${slotId}/charge-absence`, {
+      const res  = await fetch(`${API}/barber/appointments/${slot.id}/charge-absence`, {
         method:  "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Error");
+
+      // Armar mensaje de WhatsApp
+      const multa   = Math.round((slot.price || 0) * 0.30);
+      const [y, m, d] = date.split("-");
+      const fechaFmt  = `${d}/${m}/${y}`;
+      const termsUrl  = "https://barbershop-saas-52q830kwn-giovani43s-projects.vercel.app/terminos";
+      const msg = [
+        `Hola ${slot.client_name || "cliente"} 👋, te contactamos desde MVZ Barbería.`,
+        "",
+        `Lamentablemente no te presentaste a tu turno del ${fechaFmt} a las ${slot.time}hs (o llegaste después de los 8 minutos de tolerancia permitidos).`,
+        "",
+        "De acuerdo a los Términos y Condiciones que aceptaste al reservar, se aplica una multa del 30% del valor del servicio:",
+        "",
+        `💈 Servicio: ${slot.service_name}`,
+        `💰 Valor del servicio: $${Number(slot.price).toLocaleString("es-AR")}`,
+        `⚠️ Multa (30%): $${Number(multa).toLocaleString("es-AR")}`,
+        "",
+        "Por favor realizá el pago al siguiente alias de Mercado Pago:",
+        "👉 resquin.mvz",
+        "",
+        `Para más información visitá:\n${termsUrl}`,
+      ].join("\n");
+
+      if (slot.client_wa) {
+        const waNumber = slot.client_wa.replace(/\D/g, "");
+        window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
+      } else {
+        alert("Cargo registrado. El cliente no tiene WhatsApp registrado.");
+      }
+
       load();
     } catch (e) {
       alert(e.message);
@@ -352,7 +382,7 @@ function BarberPanel({ token, barber, onLogout }) {
                   </div>
                   {canCharge && (
                     <button
-                      onClick={() => chargeAbsence(slot.id)}
+                      onClick={() => chargeAbsence(slot)}
                       style={{
                         marginTop: 10, width: "100%",
                         background: "rgba(249,115,22,0.12)",
