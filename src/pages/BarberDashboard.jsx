@@ -18,11 +18,12 @@ const C = {
 };
 
 const STATUS = {
-  booked:    { label: "Reservado",   color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
-  rescheduled:{ label: "Reprogramado", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
-  available: { label: "Disponible",  color: "#555",    bg: "transparent" },
-  cancelled: { label: "Cancelado",   color: C.red,     bg: C.redDim },
-  completed: { label: "Completado",  color: C.muted,   bg: "transparent" },
+  booked:      { label: "Reservado",    color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
+  rescheduled: { label: "Reprogramado", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+  available:   { label: "Disponible",   color: "#555",    bg: "transparent" },
+  cancelled:   { label: "Cancelado",    color: C.red,     bg: C.redDim },
+  completed:   { label: "Completado",   color: C.muted,   bg: "transparent" },
+  no_show:     { label: "Ausente",      color: "#f97316", bg: "rgba(249,115,22,0.1)" },
 };
 
 function fmtPrice(p) {
@@ -207,6 +208,21 @@ function BarberPanel({ token, barber, onLogout }) {
     } catch {}
   };
 
+  const chargeAbsence = async (slotId) => {
+    if (!window.confirm("¿Registrar cargo por ausencia (30% del precio)?")) return;
+    try {
+      const res  = await fetch(`${API}/barber/appointments/${slotId}/charge-absence`, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      load();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadBlocks(); }, [loadBlocks]);
 
@@ -288,42 +304,66 @@ function BarberPanel({ token, barber, onLogout }) {
             )}
             {slots.map(slot => {
               const st = STATUS[slot.status] || STATUS.available;
-              const isBooked = ["booked","rescheduled"].includes(slot.status);
+              const hasClient = ["booked","rescheduled","no_show","cancelled"].includes(slot.status);
+              const canCharge = slot.status === "no_show" && !slot.absence_charge_sent;
               return (
                 <div key={slot.id} style={{
                   background: C.card, border: `1px solid ${C.border}`,
                   borderRadius: 12, padding: "12px 16px",
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  opacity: slot.status === "available" ? 0.5 : 1,
+                  opacity: slot.status === "available" ? 0.45 : 1,
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ color: C.gold, fontWeight: 800, fontSize: 16, minWidth: 48 }}>
-                      {slot.time}
-                    </span>
-                    <div>
-                      {isBooked ? (
-                        <>
-                          <p style={{ color: C.text, fontWeight: 600, fontSize: 13, margin: 0 }}>
-                            {slot.client_name || "Cliente"}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ color: C.gold, fontWeight: 800, fontSize: 16, minWidth: 48 }}>
+                        {slot.time}
+                      </span>
+                      <div>
+                        {hasClient ? (
+                          <>
+                            <p style={{ color: C.text, fontWeight: 600, fontSize: 13, margin: 0 }}>
+                              {slot.client_name || "Cliente"}
+                            </p>
+                            <p style={{ color: C.muted, fontSize: 12, margin: "2px 0 0" }}>
+                              {slot.client_dni && <span style={{ marginRight: 6 }}>DNI {slot.client_dni} ·</span>}
+                              {slot.service_name} · {fmtPrice(slot.price)}
+                            </p>
+                          </>
+                        ) : (
+                          <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
+                            {slot.status === "available" ? "Disponible" : slot.service_name || "—"}
                           </p>
-                          <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
-                            {slot.service_name} · {fmtPrice(slot.price)}
-                          </p>
-                        </>
-                      ) : (
-                        <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
-                          {slot.status === "available" ? "Disponible" : slot.service_name || "—"}
-                        </p>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      <span style={{
+                        background: st.bg, color: st.color,
+                        borderRadius: 20, padding: "3px 10px",
+                        fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+                      }}>
+                        {st.label}
+                      </span>
+                      {slot.absence_charge_sent && (
+                        <span style={{ color: "#f97316", fontSize: 10, fontWeight: 600 }}>
+                          Cargo: {fmtPrice(slot.absence_charge_amount)}
+                        </span>
                       )}
                     </div>
                   </div>
-                  <span style={{
-                    background: st.bg, color: st.color,
-                    borderRadius: 20, padding: "3px 10px",
-                    fontSize: 11, fontWeight: 700,
-                  }}>
-                    {st.label}
-                  </span>
+                  {canCharge && (
+                    <button
+                      onClick={() => chargeAbsence(slot.id)}
+                      style={{
+                        marginTop: 10, width: "100%",
+                        background: "rgba(249,115,22,0.12)",
+                        border: "1px solid rgba(249,115,22,0.4)",
+                        borderRadius: 8, padding: "8px 0",
+                        color: "#f97316", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      }}
+                    >
+                      Cobrar ausencia (30%)
+                    </button>
+                  )}
                 </div>
               );
             })}

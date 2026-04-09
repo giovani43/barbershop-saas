@@ -29,10 +29,8 @@ export default function App() {
   // Mi turno — consulta por WhatsApp
   if (path === "/mi-turno") return <MiTurnoPage />;
 
-  // Barber dashboard — /barber y /barber/dashboard
-  if (path === "/barber" || path === "/barber/dashboard" || path === "/dashboard") {
-    return <BarberDashboard />;
-  }
+  // Barber dashboard — completely isolated from booking flow
+  if (path.startsWith("/barber")) return <BarberDashboard />;
 
   // QR verify — público, antes del guard de admin
   const verifyMatch = path.match(/^\/admin\/verify\/([^/]+)/);
