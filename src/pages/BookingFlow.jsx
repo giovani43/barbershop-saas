@@ -481,6 +481,10 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
     setError(""); setMode("loading");
     try {
       const res  = await fetch(`${API}/users/by-dni?dni=${encodeURIComponent(cleanDni())}`);
+      const ct   = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        throw new Error(`Error del servidor (${res.status}). Intentá de nuevo.`);
+      }
       const json = await res.json();
       if (res.status === 404) {
         if (forReserva) { setMode("notfound"); }
@@ -510,9 +514,20 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ dni: cleanDni(), name: regName.trim(), whatsapp: regWa.trim() }),
       });
+      // Guard: asegurarse de que la respuesta es JSON antes de parsear
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        throw new Error(`Error del servidor (${res.status}). Intentá de nuevo.`);
+      }
       const json = await res.json();
       if (!res.ok) {
-        if (res.status === 409) { onIdentified(json.user); return; }
+        if (res.status === 409 && json.user) {
+          // El DNI ya estaba registrado — informar al usuario con qué nombre
+          // y continuar con la cuenta existente en vez de adoptarla en silencio
+          setError(`Este DNI ya tiene una cuenta a nombre de "${json.user.name}". Continuando con esa cuenta...`);
+          setTimeout(() => onIdentified(json.user), 1800);
+          return;
+        }
         throw new Error(json.error || "Error al registrar");
       }
       onIdentified(json.user);
@@ -1523,6 +1538,11 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           terms_accepted: true,
         }),
       });
+      // Guard: si el servidor devuelve HTML (crash 500, etc.) dar un mensaje claro
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        throw new Error(`Error del servidor (${res.status}). Por favor intentá de nuevo.`);
+      }
       const json = await res.json();
       if (res.status === 409 && json.active_appt_id) {
         setActiveApptId(json.active_appt_id);
