@@ -466,13 +466,14 @@ function SplashStep({ shop, onBook, onMisTurnos }) {
 
 // ── Step 0: Identify (DNI lookup / register) + Mis Turnos ────────────────────
 function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
-  const [dni,     setDni]     = useState("");
-  const [mode,    setMode]    = useState("idle"); // idle|loading|notfound|found|misTurnos
-  const [regName, setRegName] = useState("");
-  const [regWa,   setRegWa]   = useState("");
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState("");
-  const [apptData,setApptData]= useState(null);
+  const [dni,          setDni]          = useState("");
+  const [mode,         setMode]         = useState("idle"); // idle|loading|notfound|found|misTurnos|confirm
+  const [regName,      setRegName]      = useState("");
+  const [regWa,        setRegWa]        = useState("");
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState("");
+  const [apptData,     setApptData]     = useState(null);
+  const [existingUser, setExistingUser] = useState(null);
 
   const cleanDni = () => dni.replace(/\./g,"").trim();
 
@@ -522,10 +523,9 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
       const json = await res.json();
       if (!res.ok) {
         if (res.status === 409 && json.user) {
-          // El DNI ya estaba registrado — informar al usuario con qué nombre
-          // y continuar con la cuenta existente en vez de adoptarla en silencio
-          setError(`Este DNI ya tiene una cuenta a nombre de "${json.user.name}". Continuando con esa cuenta...`);
-          setTimeout(() => onIdentified(json.user), 1800);
+          // DNI ya registrado — mostrar datos y pedir confirmación
+          setExistingUser(json.user);
+          setMode("confirm");
           return;
         }
         throw new Error(json.error || "Error al registrar");
@@ -534,6 +534,53 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
     } catch(e) { setError(e.message); }
     finally    { setSaving(false); }
   };
+
+  if (mode === "confirm" && existingUser) {
+    return (
+      <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease" }}>
+        <h2 style={{ color:C.text, fontSize:22, fontWeight:700, margin:"16px 0 4px" }}>
+          ¿Sos vos?
+        </h2>
+        <p style={{ color:C.muted, fontSize:13, marginBottom:20 }}>
+          Ya existe una cuenta con ese DNI
+        </p>
+        <div style={{
+          background:C.card, border:`1px solid ${C.border}`,
+          borderRadius:14, padding:"18px 18px", marginBottom:20,
+        }}>
+          <p style={{ color:C.muted, fontSize:11, margin:"0 0 6px", letterSpacing:1, textTransform:"uppercase" }}>Cuenta existente</p>
+          <p style={{ color:C.text, fontSize:17, fontWeight:700, margin:"0 0 4px" }}>{existingUser.name}</p>
+          <p style={{ color:C.muted, fontSize:13, margin:0 }}>DNI {existingUser.dni}</p>
+          {existingUser.whatsapp && (
+            <p style={{ color:C.muted, fontSize:13, margin:"2px 0 0" }}>WhatsApp: {existingUser.whatsapp}</p>
+          )}
+        </div>
+        <button
+          onClick={() => onIdentified(existingUser)}
+          style={{
+            width:"100%", padding:"14px",
+            background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+            border:"none", borderRadius:12,
+            color:"#000", fontWeight:800, fontSize:15, cursor:"pointer",
+            marginBottom:10,
+          }}
+        >
+          Sí, continuar con esta cuenta
+        </button>
+        <button
+          onClick={() => { setMode("idle"); setExistingUser(null); setError(""); }}
+          style={{
+            width:"100%", padding:"13px",
+            background:"transparent", border:`1px solid ${C.border}`,
+            borderRadius:12, color:C.muted,
+            fontWeight:600, fontSize:14, cursor:"pointer",
+          }}
+        >
+          No, volver
+        </button>
+      </div>
+    );
+  }
 
   if (mode === "misTurnos" && apptData) {
     return (
