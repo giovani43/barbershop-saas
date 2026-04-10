@@ -30,6 +30,23 @@ function fmtPrice(p) {
   return `$${Number(p).toLocaleString("es-AR")}`;
 }
 
+/**
+ * Normaliza un número de WhatsApp al formato internacional sin '+'.
+ * Ej: "+54 9 11 1234-5678" → "5491112345678"
+ *     "11 1234-5678"       → "5491112345678"  (asume Argentina)
+ *     "9 11 1234-5678"     → "5491112345678"  (asume Argentina)
+ * Compatible con wa.me en iOS, Android y escritorio.
+ */
+function normalizeWaNumber(raw) {
+  const digits = (raw || "").replace(/\D/g, "");
+  // Ya tiene código de país Argentina (54...)
+  if (digits.startsWith("54") && digits.length >= 12) return digits;
+  // Tiene 0 inicial (número local erróneo) — quitar el 0
+  const clean = digits.startsWith("0") ? digits.slice(1) : digits;
+  // Agregar 54 (Argentina)
+  return `54${clean}`;
+}
+
 function todayAR() {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" });
 }
@@ -117,9 +134,25 @@ function BarberLogin({ onLogin }) {
           border: "none", borderRadius: 12,
           color: loading ? C.muted : "#000",
           fontWeight: 800, fontSize: 14, cursor: loading ? "default" : "pointer",
+          marginBottom: 14,
         }}>
           {loading ? "Entrando..." : "Ingresar"}
         </button>
+
+        <p style={{ color: C.muted, fontSize: 12, textAlign: "center", margin: 0 }}>
+          ¿Sos una barbería nueva?{" "}
+          <a
+            href="/register"
+            style={{ color: C.gold, textDecoration: "none" }}
+            onClick={e => {
+              e.preventDefault();
+              window.history.pushState({}, "", "/register");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }}
+          >
+            Registrate acá
+          </a>
+        </p>
       </div>
     </div>
   );
@@ -241,7 +274,8 @@ function BarberPanel({ token, barber, onLogout }) {
       ].join("\n");
 
       if (slot.client_wa) {
-        const waNumber = slot.client_wa.replace(/\D/g, "");
+        const waNumber = normalizeWaNumber(slot.client_wa);
+        // wa.me funciona en iOS, Android y escritorio (abre WhatsApp Web si no hay app)
         window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`, "_blank");
       } else {
         alert("Cargo registrado. El cliente no tiene WhatsApp registrado.");

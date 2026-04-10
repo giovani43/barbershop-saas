@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import SplashScreen    from "./pages/SplashScreen";
 import BookingFlow     from "./pages/BookingFlow";
 import BarberDashboard from "./pages/BarberDashboard";
+import Register        from "./pages/Register";
 import AdminLogin      from "./pages/AdminLogin";
 import AdminPanel      from "./pages/AdminPanel";
 import TerminosPage    from "./pages/TerminosPage";
@@ -28,6 +29,9 @@ export default function App() {
 
   // Mi turno — consulta por WhatsApp
   if (path === "/mi-turno") return <MiTurnoPage />;
+
+  // Barber registration
+  if (path === "/register") return <Register />;
 
   // Barber dashboard — completely isolated from booking flow
   if (path.startsWith("/barber")) return <BarberDashboard />;
