@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const API = "https://web-production-d26db.up.railway.app/api/v1";
 
@@ -158,6 +158,276 @@ function BarberLogin({ onLogin }) {
   );
 }
 
+// ── QR Scanner ───────────────────────────────────────────────────────────────
+function QRScanner({ token, onClose }) {
+  const [phase,      setPhase]      = useState("scanning"); // scanning|loading|found|confirmed|error
+  const [apptData,   setApptData]   = useState(null);
+  const [errMsg,     setErrMsg]     = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const scannerRef  = useRef(null);
+  const scannedRef  = useRef(false);
+
+  useEffect(() => {
+    let scanner;
+    let mounted = true;
+
+    const initScanner = async () => {
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        scanner = new Html5Qrcode("qr-reader-barber");
+        scannerRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            if (scannedRef.current) return;
+            scannedRef.current = true;
+            scanner.stop().catch(() => {});
+            if (mounted) handleScan(decodedText);
+          },
+          () => {} // ignorar errores de frame
+        );
+      } catch (e) {
+        if (mounted) {
+          setErrMsg("No se pudo acceder a la cámara. Verificá los permisos.");
+          setPhase("error");
+        }
+      }
+    };
+
+    initScanner();
+    return () => {
+      mounted = false;
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleScan = async (rawText) => {
+    // El QR puede ser solo el token UUID o una URL que lo contiene
+    const qrToken = rawText.includes("/") ? rawText.split("/").pop() : rawText;
+    setPhase("loading");
+    try {
+      const res  = await fetch(`${API}/appointments/verify/${qrToken}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) throw new Error(`Error del servidor (${res.status})`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      setApptData({ ...json, qr_token: qrToken });
+      setPhase("found");
+    } catch (e) {
+      setErrMsg(e.message);
+      setPhase("error");
+    }
+  };
+
+  const confirmPresence = async () => {
+    setConfirming(true);
+    try {
+      const res  = await fetch(`${API}/appointments/verify/${apptData.qr_token}`, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) throw new Error(`Error del servidor (${res.status})`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      setPhase("confirmed");
+    } catch (e) {
+      setErrMsg(e.message);
+      setPhase("error");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const resetScanner = () => {
+    scannedRef.current = false;
+    setApptData(null);
+    setErrMsg("");
+    setPhase("scanning");
+    // Re-iniciar cámara
+    if (scannerRef.current) {
+      scannerRef.current.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (decodedText) => {
+          if (scannedRef.current) return;
+          scannedRef.current = true;
+          scannerRef.current.stop().catch(() => {});
+          handleScan(decodedText);
+        },
+        () => {}
+      ).catch(() => {});
+    }
+  };
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.95)",
+      display:"flex", flexDirection:"column", alignItems:"center",
+      justifyContent:"center", zIndex:300, padding:20,
+    }}>
+      <div style={{
+        width:"100%", maxWidth:400,
+        background:"#141414", borderRadius:20,
+        padding:24, position:"relative",
+      }}>
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+          <h3 style={{ color:C.text, fontSize:17, fontWeight:700, margin:0 }}>
+            Escanear QR
+          </h3>
+          <button onClick={onClose} style={{
+            background:"none", border:"none", color:C.muted,
+            fontSize:26, cursor:"pointer", lineHeight:1, padding:4,
+          }}>×</button>
+        </div>
+
+        {/* Visor de cámara (siempre montado, oculto cuando no escanea) */}
+        <div
+          id="qr-reader-barber"
+          style={{
+            width:"100%", borderRadius:12, overflow:"hidden",
+            display: phase === "scanning" ? "block" : "none",
+            background:"#000",
+            minHeight: 240,
+          }}
+        />
+
+        {/* Estado: cargando después de escanear */}
+        {phase === "loading" && (
+          <div style={{ padding:"40px 0", textAlign:"center" }}>
+            <p style={{ color:C.muted, fontSize:14 }}>Verificando turno...</p>
+          </div>
+        )}
+
+        {/* Estado: turno encontrado */}
+        {phase === "found" && apptData && (
+          <div style={{ animation:"fadeIn .3s ease" }}>
+            <div style={{
+              background:"#0a0a0a", borderRadius:12, padding:16, marginBottom:16,
+            }}>
+              <p style={{ color:C.muted, fontSize:11, margin:"0 0 10px", textTransform:"uppercase", letterSpacing:1 }}>
+                Datos del turno
+              </p>
+              {[
+                { label:"Cliente",  value: apptData.client_name || "—" },
+                { label:"Servicio", value: apptData.service_name },
+                { label:"Barbero",  value: apptData.barber_name },
+                { label:"Día",      value: apptData.fecha },
+                { label:"Hora",     value: apptData.hora },
+                { label:"Código",   value: apptData.booking_code },
+              ].map(({ label, value }) => (
+                <div key={label} style={{
+                  display:"flex", justifyContent:"space-between",
+                  padding:"5px 0", borderBottom:`1px solid #1a1a1a`,
+                }}>
+                  <span style={{ color:C.muted,  fontSize:13 }}>{label}</span>
+                  <span style={{ color:C.text,   fontSize:13, fontWeight:600 }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={confirmPresence}
+              disabled={confirming}
+              style={{
+                width:"100%", padding:14,
+                background: confirming ? "#333" : `linear-gradient(135deg, #22c55e, #16a34a)`,
+                border:"none", borderRadius:12,
+                color: confirming ? C.muted : "#fff",
+                fontWeight:800, fontSize:15, cursor: confirming ? "default" : "pointer",
+              }}
+            >
+              {confirming ? "Confirmando..." : "✓ Confirmar presencia"}
+            </button>
+          </div>
+        )}
+
+        {/* Estado: confirmado */}
+        {phase === "confirmed" && (
+          <div style={{ padding:"20px 0", textAlign:"center" }}>
+            <div style={{
+              width:64, height:64, borderRadius:"50%",
+              background:"rgba(34,197,94,0.15)", border:`2px solid ${C.green}`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              margin:"0 auto 16px",
+            }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+                   stroke={C.green} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <p style={{ color:C.green, fontSize:17, fontWeight:700, margin:"0 0 6px" }}>
+              ¡Presencia confirmada!
+            </p>
+            <p style={{ color:C.muted, fontSize:13, margin:"0 0 20px" }}>
+              El turno fue marcado como presente
+            </p>
+            <button
+              onClick={onClose}
+              style={{
+                width:"100%", padding:13,
+                background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                border:"none", borderRadius:12,
+                color:"#000", fontWeight:800, fontSize:14, cursor:"pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {/* Estado: error */}
+        {phase === "error" && (
+          <div style={{ padding:"20px 0", textAlign:"center" }}>
+            <p style={{ color:C.red, fontSize:15, fontWeight:600, margin:"0 0 8px" }}>
+              {errMsg || "Error al verificar el QR"}
+            </p>
+            <button
+              onClick={resetScanner}
+              style={{
+                width:"100%", padding:13,
+                background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                border:"none", borderRadius:12,
+                color:"#000", fontWeight:800, fontSize:14, cursor:"pointer",
+                marginBottom:10,
+              }}
+            >
+              Escanear otro QR
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                width:"100%", padding:11,
+                background:"transparent", border:`1px solid ${C.border}`,
+                borderRadius:12, color:C.muted,
+                fontWeight:600, fontSize:13, cursor:"pointer",
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {/* Instrucción debajo del visor */}
+        {phase === "scanning" && (
+          <p style={{
+            color:C.muted, fontSize:12, textAlign:"center",
+            margin:"12px 0 0",
+          }}>
+            Apuntá la cámara al código QR del cliente
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Time slots for block picker ───────────────────────────────────────────────
 const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => {
   const h = 9 + Math.floor(i / 2);
@@ -171,6 +441,9 @@ function BarberPanel({ token, barber, onLogout }) {
   const [slots,   setSlots]   = useState([]);
   const [date,    setDate]    = useState(todayAR());
   const [loading, setLoading] = useState(true);
+
+  // QR scanner state
+  const [showQR,  setShowQR]  = useState(false);
 
   // Blocked slots state
   const [blocks,      setBlocks]      = useState([]);
@@ -315,13 +588,32 @@ function BarberPanel({ token, barber, onLogout }) {
             {barber.name}
           </p>
         </div>
-        <button onClick={onLogout} style={{
-          background: "transparent", border: `1px solid ${C.border}`,
-          borderRadius: 8, padding: "6px 14px",
-          color: C.muted, fontSize: 12, cursor: "pointer",
-        }}>
-          Salir
-        </button>
+        <div style={{ display:"flex", gap:8 }}>
+          <button
+            onClick={() => setShowQR(true)}
+            style={{
+              background: C.goldDim, border: `1px solid ${C.goldBorder}`,
+              borderRadius: 8, padding: "6px 14px",
+              color: C.gold, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 5,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+              <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01"/>
+            </svg>
+            Escanear QR
+          </button>
+          <button onClick={onLogout} style={{
+            background: "transparent", border: `1px solid ${C.border}`,
+            borderRadius: 8, padding: "6px 14px",
+            color: C.muted, fontSize: 12, cursor: "pointer",
+          }}>
+            Salir
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: "20px 16px", maxWidth: 480, margin: "0 auto" }}>
@@ -489,6 +781,11 @@ function BarberPanel({ token, barber, onLogout }) {
           )}
         </div>
       </div>
+
+      {/* ── QR Scanner ───────────────────────────────────────────────────────── */}
+      {showQR && (
+        <QRScanner token={token} onClose={() => { setShowQR(false); load(); }} />
+      )}
 
       {/* ── Modal bloqueo ─────────────────────────────────────────────────────── */}
       {blockModal && (

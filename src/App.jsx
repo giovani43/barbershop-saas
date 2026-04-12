@@ -8,6 +8,8 @@ import AdminPanel      from "./pages/AdminPanel";
 import TerminosPage    from "./pages/TerminosPage";
 import VerifyPage      from "./pages/VerifyPage";
 import MiTurnoPage     from "./pages/MiTurnoPage";
+import ClientLogin     from "./pages/ClientLogin";
+import ClientRegister  from "./pages/ClientRegister";
 
 function getPath() {
   // Normalize: strip trailing slash (except root "/")
@@ -26,6 +28,10 @@ export default function App() {
 
   // Términos y condiciones
   if (path === "/terminos") return <TerminosPage />;
+
+  // Auth de clientes
+  if (path === "/cliente/login")    return <ClientLogin />;
+  if (path === "/cliente/registro") return <ClientRegister />;
 
   // Mi turno — consulta por WhatsApp
   if (path === "/mi-turno") return <MiTurnoPage />;

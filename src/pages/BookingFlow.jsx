@@ -1497,6 +1497,185 @@ function SuccessStep({ appt, dni, onRestart }) {
   );
 }
 
+// ── Auth wall — cliente no logueado intenta reservar ─────────────────────────
+function AuthWall({ onGoHome }) {
+  return (
+    <div style={{ padding:"40px 24px", textAlign:"center", animation:"fadeUp .35s ease" }}>
+      <div style={{
+        width:64, height:64, borderRadius:"50%",
+        background:"rgba(212,175,55,0.1)", border:`2px solid ${C.goldBorder}`,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        margin:"0 auto 20px",
+      }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+             stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <h2 style={{ color:C.text, fontSize:20, fontWeight:700, margin:"0 0 8px" }}>
+        Iniciá sesión para reservar
+      </h2>
+      <p style={{ color:C.muted, fontSize:13, margin:"0 0 28px", lineHeight:1.5 }}>
+        Necesitás una cuenta para poder reservar tu turno en MVZ Barbería
+      </p>
+      <div style={{ display:"flex", flexDirection:"column", gap:12, maxWidth:280, margin:"0 auto" }}>
+        <button
+          onClick={() => navTo("/cliente/login")}
+          style={{
+            width:"100%", padding:"14px",
+            background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+            border:"none", borderRadius:12,
+            color:"#000", fontWeight:800, fontSize:15, cursor:"pointer",
+          }}
+        >
+          Iniciar sesión
+        </button>
+        <button
+          onClick={() => navTo("/cliente/registro")}
+          style={{
+            width:"100%", padding:"13px",
+            background:"transparent", border:`1.5px solid ${C.border}`,
+            borderRadius:12, color:C.text,
+            fontWeight:600, fontSize:14, cursor:"pointer",
+          }}
+        >
+          Crear cuenta
+        </button>
+        <button
+          onClick={onGoHome}
+          style={{
+            background:"none", border:"none", cursor:"pointer",
+            color:C.muted, fontSize:13, padding:"8px 0",
+          }}
+        >
+          Volver
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── MisTurnosJwtPanel — mis turnos con JWT ────────────────────────────────────
+function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
+  const [turnos,  setTurnos]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res  = await fetch(`${API}/clients/appointments`, {
+          headers: { Authorization: `Bearer ${clientToken}` },
+        });
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) throw new Error("Error del servidor");
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Error");
+        setTurnos(json.turnos || []);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [clientToken]);
+
+  const ESTADO_COLOR = {
+    pendiente: { bg:"rgba(212,175,55,0.12)", color:C.gold },
+    presente:  { bg:"rgba(34,197,94,0.12)",  color:C.green },
+    cancelado: { bg:"rgba(239,68,68,0.1)",   color:C.red },
+    ausente:   { bg:"rgba(100,100,100,0.12)",color:C.muted },
+  };
+
+  return (
+    <div style={{ padding:"0 16px 40px", animation:"fadeUp .35s ease" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+        <div>
+          <h2 style={{ color:C.text, fontSize:20, fontWeight:700, margin:0 }}>Mis turnos</h2>
+          <p style={{ color:C.muted, fontSize:12, margin:"2px 0 0" }}>{clientUser.name}</p>
+        </div>
+        <button onClick={onClose} style={{
+          background:"none", border:`1px solid ${C.border}`,
+          borderRadius:8, padding:"6px 14px",
+          color:C.muted, fontSize:12, cursor:"pointer",
+        }}>
+          Cerrar
+        </button>
+      </div>
+
+      {loading && <p style={{ color:C.muted, textAlign:"center" }}>Cargando...</p>}
+      {error   && <p style={{ color:C.red,  textAlign:"center", fontSize:13 }}>{error}</p>}
+
+      {!loading && turnos.length === 0 && (
+        <p style={{ color:C.muted, textAlign:"center", fontSize:14, padding:"20px 0" }}>
+          No tenés turnos registrados
+        </p>
+      )}
+
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {turnos.map(t => {
+          const est = ESTADO_COLOR[t.estado] || ESTADO_COLOR.cancelado;
+          return (
+            <div key={t.id} style={{
+              background:C.card, border:`1px solid ${C.border}`,
+              borderRadius:14, padding:"14px 16px",
+            }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                <div>
+                  <p style={{ color:C.text, fontWeight:700, fontSize:14, margin:0 }}>
+                    {t.fecha} · {t.hora}
+                  </p>
+                  <p style={{ color:C.muted, fontSize:12, margin:"3px 0 0" }}>
+                    {t.barber_nombre} · {t.servicio}
+                  </p>
+                  <p style={{ color:C.gold, fontSize:13, fontWeight:600, margin:"3px 0 0" }}>
+                    ${Number(t.precio).toLocaleString("es-AR")}
+                  </p>
+                </div>
+                <span style={{
+                  background:est.bg, color:est.color,
+                  borderRadius:20, padding:"4px 12px",
+                  fontSize:11, fontWeight:700, whiteSpace:"nowrap",
+                }}>
+                  {t.estado}
+                </span>
+              </div>
+              {t.estado === "cancelado" && t.cancelled_at && (
+                <p style={{ color:C.muted, fontSize:11, margin:"4px 0 0" }}>
+                  Cancelado el {new Date(t.cancelled_at).toLocaleDateString("es-AR")}
+                </p>
+              )}
+              {t.booking_code && (
+                <p style={{ color:C.muted, fontSize:11, margin:"4px 0 0" }}>
+                  Código: {t.booking_code}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers de auth de cliente ────────────────────────────────────────────────
+function getClientAuth() {
+  try {
+    const token = localStorage.getItem("client_token") || "";
+    const user  = JSON.parse(localStorage.getItem("client_user") || "null");
+    return { token, user };
+  } catch {
+    return { token: "", user: null };
+  }
+}
+
+function navTo(path) {
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 // ── Main BookingFlow ──────────────────────────────────────────────────────────
 export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode = "book", onGoHome }) {
   const [shopData,  setShopData]  = useState(null);
@@ -1505,7 +1684,8 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
   // step -1=splash, 0=identify, 1=barber, 2=service, 3=slot, 4=confirm, 5=success
   const [step,          setStep]          = useState(startStep);
   const [entryMode,     setEntryMode]     = useState(startEntryMode);
-  const [user,          setUser]          = useState(null);
+  // Inicializar user desde localStorage si hay sesión activa
+  const [user,          setUser]          = useState(() => getClientAuth().user);
   const [selBarber,     setSelBarber]     = useState(null);
   const [selService,    setSelService]    = useState(null);
   const [selSlot,       setSelSlot]       = useState(null);
@@ -1575,9 +1755,13 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
     setBookError("");
     setActiveApptId(null);
     try {
+      const { token: clientToken } = getClientAuth();
+      const headers = { "Content-Type": "application/json" };
+      if (clientToken) headers["Authorization"] = `Bearer ${clientToken}`;
+
       const res  = await fetch(`${API}/appointments/book`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           appointment_id: selSlot.id,
           service_id:     selService.id,
@@ -1669,8 +1853,37 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
             </div>
           </div>
 
-          {/* Right side icons */}
+          {/* Right side: user info + icons */}
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {(() => {
+              const { token: ct, user: cu } = getClientAuth();
+              if (ct && cu) {
+                return (
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ color:C.muted, fontSize:11 }}>
+                      {cu.name.split(" ")[0]}
+                    </span>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem("client_token");
+                        localStorage.removeItem("client_user");
+                        if (onGoHome) onGoHome();
+                        else navTo("/");
+                      }}
+                      style={{
+                        background:"transparent",
+                        border:`1px solid ${C.border}`,
+                        borderRadius:6, padding:"4px 10px",
+                        color:C.muted, fontSize:11, cursor:"pointer",
+                      }}
+                    >
+                      Salir
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <a href="https://www.instagram.com/mvz.barberia" target="_blank" rel="noreferrer"
                style={{ color:C.muted, display:"flex", alignItems:"center" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c9993c" strokeWidth="1.5">
@@ -1764,14 +1977,40 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           onMisTurnos={() => { setEntryMode("misTurnos"); setStep(0); }}
         />
       )}
-      {step === 0 && (
-        <IdentifyStep
-          onIdentified={u => { setUser(u); setStep(1); }}
-          misTurnosFirst={entryMode === "misTurnos"}
-          shopSlug={shopSlug}
-          onGoHome={onGoHome ? onGoHome : () => setStep(startStep)}
-        />
-      )}
+      {step === 0 && (() => {
+        const { token: ct, user: cu } = getClientAuth();
+        // Ya logueado + modo reserva → saltar directo a selección de barbero
+        if (ct && cu && entryMode === "book") {
+          if (!user) setUser(cu);
+          setTimeout(() => setStep(1), 0);
+          return null;
+        }
+        // Ya logueado + misTurnos → panel de turnos con JWT
+        if (ct && cu && entryMode === "misTurnos") {
+          return (
+            <MisTurnosJwtPanel
+              clientToken={ct}
+              clientUser={cu}
+              onClose={onGoHome ? onGoHome : () => setStep(startStep)}
+            />
+          );
+        }
+        // No logueado + modo reserva → auth wall
+        if (!ct && entryMode === "book") {
+          return (
+            <AuthWall onGoHome={onGoHome ? onGoHome : () => setStep(startStep)} />
+          );
+        }
+        // No logueado + misTurnos → flujo DNI existente
+        return (
+          <IdentifyStep
+            onIdentified={u => { setUser(u); setStep(1); }}
+            misTurnosFirst={entryMode === "misTurnos"}
+            shopSlug={shopSlug}
+            onGoHome={onGoHome ? onGoHome : () => setStep(startStep)}
+          />
+        );
+      })()}
       {step === 1 && (
         <BarberStep
           barbers={barbers}
