@@ -3,14 +3,14 @@ import { useState } from "react";
 const API = "https://web-production-d26db.up.railway.app/api/v1";
 
 const C = {
-  gold:      "#D4AF37",
-  goldDim:   "rgba(212,175,55,0.12)",
-  goldBorder:"rgba(212,175,55,0.35)",
-  bg:        "#080808",
-  card:      "#0f0f0f",
-  border:    "#1e1e1e",
-  text:      "#f0f0f0",
-  muted:     "#666666",
+  gold:      "#C9A84C",
+  goldDim:   "rgba(201,168,76,0.12)",
+  goldBorder:"rgba(201,168,76,0.3)",
+  bg:        "#0A0A0A",
+  card:      "#111111",
+  border:    "#222222",
+  text:      "#FFFFFF",
+  muted:     "#777777",
   red:       "#ef4444",
 };
 
@@ -101,7 +101,7 @@ export default function AdminLogin({ onLogin }) {
     <div style={{
       minHeight:"100vh", background:C.bg,
       display:"flex", alignItems:"center", justifyContent:"center",
-      fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
       padding:16,
     }}>
       <style>{`input::placeholder{color:#444}`}</style>
@@ -191,7 +191,7 @@ export default function AdminLogin({ onLogin }) {
 
         <button onClick={submit} disabled={loading} style={{
           width:"100%", padding:15,
-          background: loading ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+          background: loading ? "#2a2a2a" : `linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
           border:"none", borderRadius:12,
           color: loading ? C.muted : "#000",
           fontWeight:800, fontSize:14, cursor: loading ? "default" : "pointer",

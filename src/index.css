@@ -2,17 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --gold:         #C9A84C;
+  --gold-light:   #E8CC6A;
+  --gold-dim:     rgba(201,168,76,0.12);
+  --gold-border:  rgba(201,168,76,0.3);
+  --bg:           #0A0A0A;
+  --bg-100:       #111111;
+  --bg-200:       #1A1A1A;
+  --bg-300:       #222222;
+  --text:         #FFFFFF;
+  --text-muted:   #888888;
+  --green:        #22c55e;
+  --red:          #ef4444;
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 /* ── Global dark theme ─────────────────────────────────────────────────────── */
 html, body {
-  background-color: #0a0a0a;
+  background-color: #0A0A0A;
   color: #ffffff;
   color-scheme: dark;
   margin: 0;
   padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 #root {
-  background-color: #0a0a0a;
+  background-color: #0A0A0A;
   min-height: 100vh;
 }
 
@@ -20,14 +39,14 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Force dark backgrounds on all form elements (override browser/Tailwind defaults) */
+/* ── Form elements ─────────────────────────────────────────────────────────── */
 input, textarea, select {
   color-scheme: dark;
   background-color: #111111 !important;
   color: #ffffff !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Date/time picker icon */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
@@ -35,17 +54,42 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* File input */
 input[type="file"] {
   background-color: transparent !important;
   color: #888888 !important;
 }
 
-/* Scrollbar */
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-track { background: #0A0A0A; }
 ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #444; }
 
-/* Selection color */
-::selection { background: rgba(212,175,55,0.25); color: #fff; }
+/* ── Selection ─────────────────────────────────────────────────────────────── */
+::selection { background: rgba(201,168,76,0.25); color: #fff; }
+
+/* ── Animations ────────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gold-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ── Leaflet overrides ─────────────────────────────────────────────────────── */
+.leaflet-container {
+  background: #0A0A0A !important;
+}

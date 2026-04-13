@@ -3,15 +3,16 @@ import { useState, useEffect, useCallback } from "react";
 const API = "https://web-production-d26db.up.railway.app/api/v1";
 
 const C = {
-  gold:       "#D4AF37",
-  goldDim:    "rgba(212,175,55,0.12)",
-  goldBorder: "rgba(212,175,55,0.35)",
-  bg:         "#080808",
-  card:       "#0f0f0f",
-  cardHigh:   "#161616",
-  border:     "#1e1e1e",
-  text:       "#f0f0f0",
-  muted:      "#666666",
+  gold:       "#C9A84C",
+  goldLight:  "#E8CC6A",
+  goldDim:    "rgba(201,168,76,0.12)",
+  goldBorder: "rgba(201,168,76,0.3)",
+  bg:         "#0A0A0A",
+  card:       "#111111",
+  cardHigh:   "#1A1A1A",
+  border:     "#222222",
+  text:       "#FFFFFF",
+  muted:      "#777777",
   green:      "#22c55e",
   greenDim:   "rgba(34,197,94,0.1)",
   red:        "#ef4444",
@@ -597,7 +598,7 @@ function SettingsTab({ token, shop, onShopUpdate }) {
 
       <button onClick={save} disabled={saving} style={{
         width:"100%", padding:12, marginBottom:20,
-        background: `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+        background: `linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
         border:"none", borderRadius:10,
         color:"#000", fontWeight:800, fontSize:14, cursor:"pointer",
       }}>
@@ -622,7 +623,7 @@ function SettingsTab({ token, shop, onShopUpdate }) {
             width:52, height:28, borderRadius:14, cursor:"pointer",
             border:"none",
             background: form.flash_promo_active
-              ? `linear-gradient(135deg, #E8CC6A, #9A7B1E)`
+              ? `linear-gradient(135deg, ${C.gold}, #8a6a1e)`
               : C.border,
             position:"relative", transition:"background .2s",
           }}>
@@ -708,7 +709,7 @@ function ModalActions({ onSave, onCancel, saving }) {
       }}>Cancelar</button>
       <button onClick={onSave} disabled={saving} style={{
         flex:2, padding:12,
-        background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+        background:`linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
         border:"none", borderRadius:10,
         color:"#000", fontWeight:800, fontSize:14,
         cursor: saving ? "default" : "pointer",
@@ -735,7 +736,7 @@ export default function AdminPanel({ token: initialToken, shop: initialShop, onL
   return (
     <div style={{
       minHeight:"100vh", background:C.bg,
-      fontFamily:"'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
     }}>
       <style>{`
         input::placeholder{color:#333}

@@ -3,14 +3,16 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const API = "https://web-production-d26db.up.railway.app/api/v1";
 
 const C = {
-  gold:       "#D4AF37",
-  goldDim:    "rgba(212,175,55,0.12)",
-  goldBorder: "rgba(212,175,55,0.35)",
-  bg:         "#080808",
-  card:       "#0f0f0f",
-  border:     "#1e1e1e",
-  text:       "#f0f0f0",
-  muted:      "#666666",
+  gold:       "#C9A84C",
+  goldLight:  "#E8CC6A",
+  goldDim:    "rgba(201,168,76,0.12)",
+  goldBorder: "rgba(201,168,76,0.3)",
+  bg:         "#0A0A0A",
+  card:       "#111111",
+  cardHigh:   "#1A1A1A",
+  border:     "#222222",
+  text:       "#FFFFFF",
+  muted:      "#777777",
   red:        "#ef4444",
   redDim:     "rgba(239,68,68,0.1)",
   green:      "#22c55e",
@@ -51,6 +53,36 @@ function todayAR() {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" });
 }
 
+// ── Login field helper ────────────────────────────────────────────────────────
+function BarberLoginField({ label, value, set, type, ph, onEnter }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{
+        color: C.muted, fontSize: 11, display: "block", marginBottom: 6,
+        fontFamily: "'Inter', sans-serif", textTransform: "uppercase", letterSpacing: "0.1em",
+      }}>
+        {label}
+      </label>
+      <input
+        type={type} value={value} placeholder={ph}
+        onChange={e => set(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && onEnter && onEnter()}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: C.bg, border: `1px solid ${focused ? C.gold : C.border}`,
+          borderRadius: 8, padding: "13px 14px",
+          color: C.text, fontSize: 14, outline: "none",
+          fontFamily: "'Inter', sans-serif",
+          transition: "border-color 0.2s",
+        }}
+      />
+    </div>
+  );
+}
+
 // ── Login screen ──────────────────────────────────────────────────────────────
 function BarberLogin({ onLogin }) {
   const [slug,     setSlug]     = useState("");
@@ -82,58 +114,73 @@ function BarberLogin({ onLogin }) {
     <div style={{
       minHeight: "100vh", background: C.bg,
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       padding: 16,
     }}>
       <div style={{
         width: "100%", maxWidth: 380,
         background: C.card, border: `1px solid ${C.border}`,
-        borderRadius: 20, padding: 32,
+        borderRadius: 16, padding: 32,
       }}>
-        <p style={{ color: C.gold, fontSize: 11, fontWeight: 700,
-                    letterSpacing: 3, textTransform: "uppercase",
-                    textAlign: "center", margin: "0 0 4px" }}>
+        {/* Logo */}
+        <div style={{
+          width: 56, height: 56, borderRadius: "50%",
+          border: `2px solid ${C.gold}`,
+          background: "linear-gradient(135deg, #1a1508, #2d2010)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 18px", overflow: "hidden",
+          boxShadow: `0 0 20px rgba(201,168,76,0.15)`,
+        }}>
+          <img src="/logo.jpg" alt="MVZ"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            onError={e => {
+              e.target.style.display = "none";
+              e.target.parentElement.innerHTML = `<span style="font-size:16px;font-weight:800;color:${C.gold};font-family:'Playfair Display',serif">MVZ</span>`;
+            }}
+          />
+        </div>
+        <p style={{
+          color: C.gold, fontSize: 9, fontWeight: 700,
+          letterSpacing: "0.3em", textTransform: "uppercase",
+          textAlign: "center", margin: "0 0 4px",
+          fontFamily: "'Inter', sans-serif",
+        }}>
           Panel Barbero
         </p>
-        <h1 style={{ color: C.text, fontSize: 22, fontWeight: 800,
-                     textAlign: "center", margin: "0 0 28px" }}>
-          BarberOS
+        <h1 style={{
+          color: C.text, fontSize: 20, fontWeight: 700,
+          textAlign: "center", margin: "0 0 28px",
+          fontFamily: "'Playfair Display', Georgia, serif",
+          letterSpacing: "0.08em",
+        }}>
+          MVZ Barbería
         </h1>
 
         {[
           { label: "Tu usuario (slug)", value: slug, set: setSlug, type: "text", ph: "ej: juan-perez" },
           { label: "Contraseña",        value: password, set: setPassword, type: "password", ph: "••••••••" },
         ].map(({ label, value, set, type, ph }) => (
-          <div key={label} style={{ marginBottom: 14 }}>
-            <label style={{ color: C.muted, fontSize: 12, display: "block", marginBottom: 5 }}>
-              {label}
-            </label>
-            <input
-              type={type} value={value} placeholder={ph}
-              onChange={e => set(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && submit()}
-              style={{
-                width: "100%", boxSizing: "border-box",
-                background: "#0a0a0a", border: `1.5px solid ${C.border}`,
-                borderRadius: 10, padding: "13px 14px",
-                color: C.text, fontSize: 15, outline: "none",
-              }}
-            />
-          </div>
+          <BarberLoginField key={label} label={label} value={value} set={set} type={type} ph={ph} onEnter={submit} />
         ))}
 
         {error && (
-          <p style={{ color: C.red, fontSize: 13, textAlign: "center", marginBottom: 12 }}>
-            {error}
-          </p>
+          <div style={{
+            background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
+            borderRadius: 8, padding: "10px 14px", marginBottom: 14,
+          }}>
+            <p style={{ color: C.red, fontSize: 13, margin: 0 }}>{error}</p>
+          </div>
         )}
 
         <button onClick={submit} disabled={loading} style={{
           width: "100%", padding: 15,
-          background: loading ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
-          border: "none", borderRadius: 12,
+          background: loading ? "#2a2a2a" : `linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
+          border: "none", borderRadius: 8,
           color: loading ? C.muted : "#000",
-          fontWeight: 800, fontSize: 14, cursor: loading ? "default" : "pointer",
+          fontWeight: 700, fontSize: 12,
+          letterSpacing: "0.2em", textTransform: "uppercase",
+          cursor: loading ? "default" : "pointer",
+          fontFamily: "'Inter', sans-serif",
           marginBottom: 14,
         }}>
           {loading ? "Entrando..." : "Ingresar"}
@@ -372,7 +419,7 @@ function QRScanner({ token, onClose }) {
               onClick={onClose}
               style={{
                 width:"100%", padding:13,
-                background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                background:`linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
                 border:"none", borderRadius:12,
                 color:"#000", fontWeight:800, fontSize:14, cursor:"pointer",
               }}
@@ -392,7 +439,7 @@ function QRScanner({ token, onClose }) {
               onClick={resetScanner}
               style={{
                 width:"100%", padding:13,
-                background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                background:`linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
                 border:"none", borderRadius:12,
                 color:"#000", fontWeight:800, fontSize:14, cursor:"pointer",
                 marginBottom:10,
@@ -570,46 +617,74 @@ function BarberPanel({ token, barber, onLogout }) {
   return (
     <div style={{
       minHeight: "100vh", background: C.bg,
-      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       padding: "0 0 40px",
     }}>
       {/* Header */}
       <div style={{
-        background: C.card, borderBottom: `1px solid ${C.border}`,
-        padding: "16px 20px",
+        background: "rgba(10,10,10,0.95)",
+        backdropFilter: "blur(12px)",
+        borderBottom: `1px solid ${C.goldBorder}`,
+        padding: "14px 20px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
+        position: "sticky", top: 0, zIndex: 50,
       }}>
-        <div>
-          <p style={{ color: C.gold, fontSize: 10, fontWeight: 700,
-                      letterSpacing: 3, textTransform: "uppercase", margin: 0 }}>
-            Panel Barbero
-          </p>
-          <p style={{ color: C.text, fontSize: 16, fontWeight: 700, margin: 0 }}>
-            {barber.name}
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%",
+            border: `1.5px solid ${C.gold}`,
+            background: "linear-gradient(135deg, #1a1508, #2d2010)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            overflow: "hidden", flexShrink: 0,
+          }}>
+            <img src="/logo.jpg" alt="MVZ"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={e => {
+                e.target.style.display = "none";
+                e.target.parentElement.innerHTML = `<span style="font-size:10px;font-weight:800;color:${C.gold};font-family:'Playfair Display',serif">MVZ</span>`;
+              }}
+            />
+          </div>
+          <div>
+            <p style={{
+              color: C.gold, fontSize: 9, fontWeight: 700,
+              letterSpacing: "0.25em", textTransform: "uppercase", margin: 0,
+              fontFamily: "'Inter', sans-serif",
+            }}>
+              Panel Barbero
+            </p>
+            <p style={{
+              color: C.text, fontSize: 15, fontWeight: 600, margin: 0,
+              fontFamily: "'Playfair Display', Georgia, serif",
+            }}>
+              {barber.name}
+            </p>
+          </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button
             onClick={() => setShowQR(true)}
             style={{
               background: C.goldDim, border: `1px solid ${C.goldBorder}`,
-              borderRadius: 8, padding: "6px 14px",
-              color: C.gold, fontSize: 12, fontWeight: 700, cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 5,
+              borderRadius: 8, padding: "8px 14px",
+              color: C.gold, fontSize: 11, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "'Inter', sans-serif",
+              letterSpacing: "0.1em", textTransform: "uppercase",
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/>
-              <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01"/>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
             </svg>
             Escanear QR
           </button>
           <button onClick={onLogout} style={{
             background: "transparent", border: `1px solid ${C.border}`,
-            borderRadius: 8, padding: "6px 14px",
-            color: C.muted, fontSize: 12, cursor: "pointer",
+            borderRadius: 8, padding: "8px 14px",
+            color: C.muted, fontSize: 11, cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
           }}>
             Salir
           </button>
@@ -634,16 +709,24 @@ function BarberPanel({ token, barber, onLogout }) {
         {/* Stats */}
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           {[
-            { label: "Turnos", value: booked.length, color: C.gold },
-            { label: "Libres",  value: available,     color: C.muted },
-            { label: "Ganancia", value: fmtPrice(revenue), color: C.green },
+            { label: "Reservados", value: booked.length, color: C.gold },
+            { label: "Libres",     value: available,     color: C.muted },
+            { label: "Ganancia",   value: fmtPrice(revenue), color: C.green },
           ].map(({ label, value, color }) => (
             <div key={label} style={{
-              flex: 1, background: C.card, border: `1px solid ${C.border}`,
-              borderRadius: 12, padding: "12px 10px", textAlign: "center",
+              flex: 1, background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: 12, padding: "14px 8px", textAlign: "center",
             }}>
-              <p style={{ color, fontSize: 18, fontWeight: 800, margin: "0 0 2px" }}>{value}</p>
-              <p style={{ color: C.muted, fontSize: 10, margin: 0, textTransform: "uppercase", letterSpacing: 1 }}>{label}</p>
+              <p style={{
+                color, fontSize: 17, fontWeight: 700, margin: "0 0 3px",
+                fontFamily: "'Playfair Display', Georgia, serif",
+              }}>{value}</p>
+              <p style={{
+                color: C.muted, fontSize: 9, margin: 0,
+                textTransform: "uppercase", letterSpacing: "0.15em",
+                fontFamily: "'Inter', sans-serif",
+              }}>{label}</p>
             </div>
           ))}
         </div>
@@ -891,7 +974,7 @@ function BarberPanel({ token, barber, onLogout }) {
               disabled={blockSaving}
               style={{
                 width: "100%", padding: 15,
-                background: blockSaving ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                background: blockSaving ? "#333" : `linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
                 border: "none", borderRadius: 12,
                 color: blockSaving ? C.muted : "#000",
                 fontWeight: 800, fontSize: 15, cursor: blockSaving ? "default" : "pointer",

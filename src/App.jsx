@@ -10,6 +10,7 @@ import VerifyPage      from "./pages/VerifyPage";
 import MiTurnoPage     from "./pages/MiTurnoPage";
 import ClientLogin     from "./pages/ClientLogin";
 import ClientRegister  from "./pages/ClientRegister";
+import ClientAuthPage  from "./pages/ClientAuthPage";
 
 function getPath() {
   // Normalize: strip trailing slash (except root "/")
@@ -30,6 +31,7 @@ export default function App() {
   if (path === "/terminos") return <TerminosPage />;
 
   // Auth de clientes
+  if (path === "/cliente/auth")     return <ClientAuthPage />;
   if (path === "/cliente/login")    return <ClientLogin />;
   if (path === "/cliente/registro") return <ClientRegister />;
 

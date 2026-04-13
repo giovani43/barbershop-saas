@@ -1,19 +1,40 @@
 import { useState, useEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import GlobalFooterBar from "../components/GlobalFooterBar";
+
+// Fix leaflet default marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+// Custom gold marker
+const goldIcon = new L.Icon({
+  iconUrl:       "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize:      [25, 41],
+  iconAnchor:    [12, 41],
+  popupAnchor:   [1, -34],
+  shadowSize:    [41, 41],
+});
 
 const API = "https://web-production-d26db.up.railway.app/api/v1";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-  gold:        "#D4AF37",
+  gold:        "#C9A84C",
   goldLight:   "#E8CC6A",
-  goldDim:     "rgba(212,175,55,0.12)",
-  goldBorder:  "rgba(212,175,55,0.35)",
-  bg:          "#080808",
-  card:        "#0f0f0f",
-  cardHigh:    "#161616",
-  border:      "#1e1e1e",
-  text:        "#f0f0f0",
-  muted:       "#666666",
+  goldDim:     "rgba(201,168,76,0.12)",
+  goldBorder:  "rgba(201,168,76,0.3)",
+  bg:          "#0A0A0A",
+  card:        "#111111",
+  cardHigh:    "#1A1A1A",
+  border:      "#222222",
+  text:        "#FFFFFF",
+  muted:       "#777777",
   green:       "#22c55e",
   greenDim:    "rgba(34,197,94,0.12)",
   red:         "#ef4444",
@@ -408,7 +429,7 @@ function SplashStep({ shop, onBook, onMisTurnos }) {
       }}>
         <img src="/logo.jpg" alt="MVZ" style={{ width:"100%", height:"100%", objectFit:"cover" }}
           onError={e => {
-            e.target.parentElement.style.background = `linear-gradient(135deg, #D4AF37, #7A5C10)`;
+            e.target.parentElement.style.background = `linear-gradient(135deg, #C9A84C, #8a6a1e)`;
             e.target.parentElement.style.display = "flex";
             e.target.parentElement.style.alignItems = "center";
             e.target.parentElement.style.justifyContent = "center";
@@ -435,7 +456,7 @@ function SplashStep({ shop, onBook, onMisTurnos }) {
       <div style={{ width:"100%", maxWidth:340, display:"flex", flexDirection:"column", gap:12 }}>
         <button onClick={onBook} style={{
           width:"100%", padding:"16px",
-          background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+          background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
           border:"none", borderRadius:14,
           color:"#000", fontSize:16, fontWeight:800,
           cursor:"pointer", letterSpacing:.3,
@@ -559,7 +580,7 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
           onClick={() => onIdentified(existingUser)}
           style={{
             width:"100%", padding:"14px",
-            background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+            background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
             border:"none", borderRadius:12,
             color:"#000", fontWeight:800, fontSize:15, cursor:"pointer",
             marginBottom:10,
@@ -649,7 +670,7 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
           {error && <p style={{ color:C.red, fontSize:12, marginBottom:10 }}>{error}</p>}
           <button onClick={register} disabled={saving} style={{
             width:"100%", padding:"13px",
-            background: saving ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+            background: saving ? "#333" : `linear-gradient(135deg, #C9A84C, #8a6a1e)`,
             border:"none", borderRadius:10,
             color: saving ? C.muted : "#000",
             fontWeight:800, fontSize:14, cursor: saving ? "default" : "pointer",
@@ -668,7 +689,7 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
               disabled={mode === "loading"}
               style={{
                 width:"100%", padding:"14px",
-                background: mode==="loading" ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                background: mode==="loading" ? "#333" : `linear-gradient(135deg, #C9A84C, #8a6a1e)`,
                 border:"none", borderRadius:12,
                 color: mode==="loading" ? C.muted : "#000",
                 fontWeight:800, fontSize:15, cursor: mode==="loading" ? "default" : "pointer",
@@ -684,7 +705,7 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
               disabled={mode === "loading"}
               style={{
                 width:"100%", padding:"14px",
-                background: mode==="loading" ? "#333" : `linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+                background: mode==="loading" ? "#333" : `linear-gradient(135deg, #C9A84C, #8a6a1e)`,
                 border:"none", borderRadius:12,
                 color: mode==="loading" ? C.muted : "#000",
                 fontWeight:800, fontSize:15, cursor: mode==="loading" ? "default" : "pointer",
@@ -743,7 +764,7 @@ function BarberStep({ barbers, onSelect }) {
               margin:"0 auto 12px", position:"relative",
               boxShadow: b.available_today > 0 ? `0 0 0 2px ${C.green}` : `0 0 0 2px ${C.border}`,
               overflow:"hidden",
-              background: `linear-gradient(135deg, #D4AF37, #7A5C10)`,
+              background: `linear-gradient(135deg, #C9A84C, #8a6a1e)`,
             }}>
               {b.photo_url ? (
                 <img
@@ -1022,7 +1043,7 @@ function ConfirmStep({
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           <div style={{
             width:48, height:48, borderRadius:"50%",
-            background:`linear-gradient(135deg, #D4AF37, #7A5C10)`,
+            background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:16, fontWeight:800, color:"#000", flexShrink:0,
           }}>
@@ -1077,7 +1098,7 @@ function ConfirmStep({
       }}>
         <div style={{
           width:38, height:38, borderRadius:"50%",
-          background:`linear-gradient(135deg, #D4AF37, #7A5C10)`,
+          background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
           display:"flex", alignItems:"center", justifyContent:"center",
           fontSize:14, fontWeight:800, color:"#000", flexShrink:0,
         }}>
@@ -1133,7 +1154,7 @@ function ConfirmStep({
 
       <button onClick={onSubmit} disabled={!canSubmit} style={{
         width:"100%", padding:"16px",
-        background: canSubmit ? `linear-gradient(135deg, #E8CC6A, #9A7B1E)` : "#222",
+        background: canSubmit ? `linear-gradient(135deg, #C9A84C, #8a6a1e)` : "#222",
         border: canSubmit ? "none" : `1px solid ${C.border}`,
         borderRadius:12,
         color: canSubmit ? "#000" : C.muted,
@@ -1479,7 +1500,7 @@ function SuccessStep({ appt, dni, onRestart }) {
       )}
 
       <button onClick={onRestart} style={{
-        background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+        background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
         border:"none", borderRadius:12, padding:"14px 40px",
         color:"#000", fontWeight:800, fontSize:14,
         cursor:"pointer", letterSpacing:.5, marginTop:4,
@@ -1524,7 +1545,7 @@ function AuthWall({ onGoHome }) {
           onClick={() => navTo("/cliente/login")}
           style={{
             width:"100%", padding:"14px",
-            background:`linear-gradient(135deg, #E8CC6A, #9A7B1E)`,
+            background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
             border:"none", borderRadius:12,
             color:"#000", fontWeight:800, fontSize:15, cursor:"pointer",
           }}
@@ -1655,6 +1676,74 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ── Map panel ─────────────────────────────────────────────────────────────────
+function MapPanel() {
+  const LAT = -34.5997;
+  const LNG = -58.4369;
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <MapContainer
+        center={[LAT, LNG]}
+        zoom={16}
+        style={{ width: "100%", height: "100%" }}
+        zoomControl={false}
+        scrollWheelZoom={false}
+        attributionControl={false}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+        />
+        <Marker position={[LAT, LNG]} icon={goldIcon}>
+          <Popup>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#111", lineHeight: 1.4 }}>
+              <strong>MVZ Barbería</strong><br/>
+              Humboldt 689, CABA
+            </div>
+          </Popup>
+        </Marker>
+      </MapContainer>
+
+      {/* Overlay info card */}
+      <div style={{
+        position: "absolute",
+        bottom: 16,
+        left: 16,
+        right: 16,
+        background: "rgba(10,10,10,0.88)",
+        backdropFilter: "blur(12px)",
+        border: "1px solid rgba(201,168,76,0.3)",
+        borderRadius: 12,
+        padding: "14px 16px",
+        zIndex: 1000,
+      }}>
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 10,
+          letterSpacing: "0.25em",
+          color: "#C9A84C",
+          margin: "0 0 4px",
+          textTransform: "uppercase",
+          fontWeight: 700,
+        }}>MVZ Barbería</p>
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 13,
+          color: "#fff",
+          margin: "0 0 2px",
+          fontWeight: 600,
+        }}>Humboldt 689, CABA</p>
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 11,
+          color: "#888",
+          margin: 0,
+        }}>Lun – Sáb · 09:00 – 20:00</p>
       </div>
     </div>
   );
@@ -1807,8 +1896,9 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
 
   return (
     <div style={{
-      minHeight:"100vh", background:C.bg,
-      fontFamily:"'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      minHeight: "100vh",
+      background: C.bg,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
       <style>{`
         @keyframes fadeUp {
@@ -1817,12 +1907,34 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
         }
         input::placeholder { color: #333; }
         * { -webkit-tap-highlight-color: transparent; }
+        @media (min-width: 900px) {
+          .booking-layout { display: flex !important; align-items: stretch; }
+          .booking-map-col { display: block !important; }
+        }
       `}</style>
 
-      <div style={{ maxWidth:480, margin:"0 auto" }}>
+      {/* Desktop 2-column layout */}
+      <div className="booking-layout" style={{ display: "block", minHeight: "100vh", alignItems: "stretch" }}>
+
+        {/* Left col — map (desktop only, sticky) */}
+        <div className="booking-map-col" style={{
+          display: "none",
+          width: "45%",
+          flexShrink: 0,
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          alignSelf: "flex-start",
+        }}>
+          <MapPanel />
+        </div>
+
+        {/* Right col — booking content */}
+        <div style={{ flex: 1, minWidth: 0, paddingBottom: 60 }}>
+          <div style={{ maxWidth: 480, margin: "0 auto" }}>
 
       {/* Header */}
-      <div style={{ padding:"16px 16px 0" }}>
+      <div style={{ padding:"16px 16px 0", paddingBottom: 0 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           {/* Logo + name */}
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -1833,21 +1945,29 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
             }}>
               <img src="/logo.jpg" alt="MVZ" style={{ width:"100%", height:"100%", objectFit:"cover" }}
                 onError={e => {
-                  e.target.parentElement.style.background = `linear-gradient(135deg, #D4AF37, #7A5C10)`;
+                  e.target.parentElement.style.background = `linear-gradient(135deg, #C9A84C, #7A5C10)`;
                   e.target.parentElement.style.display = "flex";
                   e.target.parentElement.style.alignItems = "center";
                   e.target.parentElement.style.justifyContent = "center";
                   e.target.style.display = "none";
-                  e.target.parentElement.innerHTML += "<span style='font-size:13px;font-weight:800;color:#000'>MVZ</span>";
+                  e.target.parentElement.innerHTML += "<span style='font-size:13px;font-weight:800;color:#000;font-family:Inter,sans-serif'>MVZ</span>";
                 }}
               />
             </div>
             <div>
-              <p style={{ color:C.gold, fontSize:10, fontWeight:700,
-                          letterSpacing:2, textTransform:"uppercase", margin:0 }}>
+              <p style={{
+                color: C.gold, fontSize: 9, fontWeight: 700,
+                letterSpacing: "0.25em", textTransform: "uppercase", margin: 0,
+                fontFamily: "'Inter', sans-serif",
+              }}>
                 Reservas online
               </p>
-              <h1 style={{ color:C.text, fontSize:18, fontWeight:800, margin:0, lineHeight:1.1 }}>
+              <h1 style={{
+                color: C.text, fontSize: 17, fontWeight: 700,
+                margin: 0, lineHeight: 1.1,
+                fontFamily: "'Playfair Display', Georgia, serif",
+                letterSpacing: "0.05em",
+              }}>
                 {shop.name}
               </h1>
             </div>
@@ -1935,23 +2055,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
         </div>
       </div>
 
-      {/* WhatsApp floating button */}
-      <a href="https://wa.me/5491164206213" target="_blank" rel="noreferrer" style={{
-        position:"fixed", bottom:24, right:20, zIndex:100,
-        width:52, height:52, borderRadius:"50%",
-        background:"#25d366",
-        display:"flex", alignItems:"center", justifyContent:"center",
-        boxShadow:"0 4px 20px rgba(37,211,102,0.5)",
-        textDecoration:"none",
-        transition:"transform .2s, box-shadow .2s",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.transform="scale(1.1)"; e.currentTarget.style.boxShadow="0 6px 28px rgba(37,211,102,0.6)"; }}
-      onMouseLeave={e => { e.currentTarget.style.transform="scale(1)";   e.currentTarget.style.boxShadow="0 4px 20px rgba(37,211,102,0.5)"; }}
-      >
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
-        </svg>
-      </a>
+      <GlobalFooterBar />
 
       {/* Progress — solo pasos 1-4 (no en identify ni success) */}
       {step >= 1 && step <= 4 && <Progress step={step} total={4} />}
@@ -2056,7 +2160,9 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
         />
       )}
 
-      </div>{/* end maxWidth container */}
+          </div>{/* end maxWidth */}
+        </div>{/* end right col */}
+      </div>{/* end booking-layout */}
     </div>
   );
 }
