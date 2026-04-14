@@ -235,7 +235,7 @@ function QRScanner({ token, onClose }) {
           },
           () => {} // ignorar errores de frame
         );
-      } catch (e) {
+      } catch {
         if (mounted) {
           setErrMsg("No se pudo acceder a la cámara. Verificá los permisos.");
           setPhase("error");
@@ -524,7 +524,7 @@ function BarberPanel({ token, barber, onLogout }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setBlocks(await res.json());
-    } catch {}
+    } catch { /* ignore network errors */ }
   }, [token]);
 
   const createBlock = async () => {
@@ -558,7 +558,7 @@ function BarberPanel({ token, barber, onLogout }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBlocks(prev => prev.filter(b => b.id !== id));
-    } catch {}
+    } catch { /* ignore network errors */ }
   };
 
   const chargeAbsence = async (slot) => {
