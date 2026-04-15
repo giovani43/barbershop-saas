@@ -41,6 +41,8 @@ export default function VerifyPage({ token }) {
   const [done,    setDone]    = useState(false);
   const [marking, setMarking] = useState(false);
 
+  const hasBarberToken = !!localStorage.getItem("barber_token");
+
   useEffect(() => {
     fetch(`${API}/appointments/by-token/${token}`)
       .then(r => r.json())
@@ -156,7 +158,7 @@ export default function VerifyPage({ token }) {
               </p>
             )}
 
-            {isValid && (
+            {isValid && hasBarberToken && (
               <button
                 onClick={markComplete}
                 disabled={marking}
@@ -172,6 +174,17 @@ export default function VerifyPage({ token }) {
               >
                 {marking ? "Marcando..." : "Marcar como presente"}
               </button>
+            )}
+
+            {isValid && !hasBarberToken && (
+              <div style={{
+                background: C.goldDim, border: `1px solid ${C.goldBorder}`,
+                borderRadius: 12, padding: "14px 18px", textAlign: "center",
+              }}>
+                <p style={{ color: C.gold, fontSize: 13, fontWeight: 600, margin: 0 }}>
+                  Escaneá este QR desde el dashboard del barbero para confirmar presencia
+                </p>
+              </div>
             )}
           </>
         )}
