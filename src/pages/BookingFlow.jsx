@@ -734,7 +734,18 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
 }
 
 // ── Step 1: Barber select ─────────────────────────────────────────────────────
-function BarberStep({ barbers, onSelect }) {
+function BarberStep({ barbers, onSelect, shopSlug, onQuickBook }) {
+  const [quickSlots, setQuickSlots] = useState([]);
+  const [qLoading,   setQLoading]   = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/appointments/available-soon?shop_slug=${encodeURIComponent(shopSlug)}&limit=8`)
+      .then(r => r.json())
+      .then(d => setQuickSlots(d.slots || []))
+      .catch(() => {})
+      .finally(() => setQLoading(false));
+  }, [shopSlug]);
+
   return (
     <div style={{ padding:"0 16px 24px", animation:"fadeUp .35s ease" }}>
       <h2 style={{ color:C.text, fontSize:22, fontWeight:700, margin:"16px 0 4px" }}>
@@ -815,6 +826,67 @@ function BarberStep({ barbers, onSelect }) {
             )}
           </button>
         ))}
+      </div>
+
+      {/* ── Turnos próximos disponibles ──────────────────────────────────── */}
+      <div style={{ marginTop:28, paddingTop:20, borderTop:`1px solid ${C.border}` }}>
+        <p style={{
+          color:C.gold, fontSize:10, fontWeight:700, letterSpacing:"0.2em",
+          textTransform:"uppercase", margin:"0 0 14px",
+        }}>
+          Turnos más próximos disponibles
+        </p>
+        {qLoading ? (
+          <p style={{ color:C.muted, fontSize:13, textAlign:"center", padding:"8px 0" }}>
+            Cargando...
+          </p>
+        ) : quickSlots.length === 0 ? (
+          <p style={{ color:C.muted, fontSize:13, textAlign:"center", padding:"8px 0" }}>
+            No hay turnos disponibles próximamente
+          </p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {quickSlots.map((slot, i) => {
+              const barber = barbers.find(b => String(b.id) === String(slot.barber_id))
+                          || { id: slot.barber_id, name: slot.barber_name };
+              return (
+                <div key={slot.id} style={{
+                  background:C.card, border:`1px solid ${C.border}`,
+                  borderRadius:12, padding:"10px 14px",
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  animation:`fadeUp .3s ease ${i * 0.05}s both`,
+                }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <span style={{ color:C.gold, fontWeight:800, fontSize:16, minWidth:44 }}>
+                      {slot.time}
+                    </span>
+                    <div>
+                      <p style={{ color:C.text, fontSize:13, fontWeight:600, margin:0 }}>
+                        {slot.date_label}
+                      </p>
+                      <p style={{ color:C.muted, fontSize:11, margin:"2px 0 0" }}>
+                        {slot.barber_name}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onQuickBook(barber, slot.date_iso, { id: slot.id, time: slot.time })}
+                    style={{
+                      background:`linear-gradient(135deg, ${C.gold}, #8a6a1e)`,
+                      border:"none", borderRadius:8,
+                      color:"#000", fontWeight:800, fontSize:11,
+                      letterSpacing:"0.1em", padding:"7px 14px",
+                      cursor:"pointer", whiteSpace:"nowrap",
+                      textTransform:"uppercase",
+                    }}
+                  >
+                    Reservar
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2118,14 +2190,21 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       {step === 1 && (
         <BarberStep
           barbers={barbers}
-          onSelect={b => { setSelBarber(b); setStep(2); }}
+          onSelect={b => { setSelBarber(b); setSelSlot(null); setStep(2); }}
+          shopSlug={shopSlug}
+          onQuickBook={(b, dateIso, slot) => {
+            setSelBarber(b);
+            setSelDate(dateIso);
+            setSelSlot(slot);
+            setStep(2);
+          }}
         />
       )}
       {step === 2 && (
         <ServiceStep
           services={services}
           selected={selService}
-          onSelect={s => { setSelService(s); setStep(3); }}
+          onSelect={s => { setSelService(s); setStep(selSlot ? 4 : 3); }}
         />
       )}
       {step === 3 && (
