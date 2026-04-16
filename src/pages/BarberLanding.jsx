@@ -54,7 +54,7 @@ function BookingModal({ slot, onClose, onSuccess }) {
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400;600;700&display=swap');
           .field:focus { border-color: rgba(201,153,60,0.6) !important; background: rgba(201,153,60,0.04) !important; outline: none; }
-          .field::placeholder { color: #2a2015; }
+          .field::placeholder { color: #555; }
         `}</style>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
@@ -65,7 +65,7 @@ function BookingModal({ slot, onClose, onSuccess }) {
             <p style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 28, color: "#f5f0e8", margin: 0, fontWeight: 400 }}>
               {slot.time} hs
             </p>
-            <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 10, color: "#4a3820", margin: "4px 0 0" }}>{slot.date}</p>
+            <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 10, color: "#888888", margin: "4px 0 0" }}>{slot.date}</p>
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(201,153,60,0.2)", color: "#6a5030", borderRadius: 2, width: 36, height: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>x</button>
         </div>
@@ -87,7 +87,7 @@ function BookingModal({ slot, onClose, onSuccess }) {
         <button onClick={handleSubmit} disabled={loading} style={{
           marginTop: 20, width: "100%",
           background: loading ? "rgba(201,153,60,0.2)" : "linear-gradient(135deg, #c9993c, #a07820)",
-          color: loading ? "#4a3820" : "#060606",
+          color: loading ? "#888888" : "#060606",
           border: "none", borderRadius: 2, padding: "16px 0",
           fontSize: 11, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
           fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.2em", textTransform: "uppercase",
@@ -95,7 +95,7 @@ function BookingModal({ slot, onClose, onSuccess }) {
           {loading ? "Reservando..." : "Confirmar Turno"}
         </button>
 
-        <p style={{ fontFamily: "'Montserrat', sans-serif", color: "#2a2015", fontSize: 10, textAlign: "center", marginTop: 12, letterSpacing: "0.1em" }}>
+        <p style={{ fontFamily: "'Montserrat', sans-serif", color: "#666666", fontSize: 10, textAlign: "center", marginTop: 12, letterSpacing: "0.1em" }}>
           Sin contrasenas. Solo tu DNI.
         </p>
       </div>
@@ -115,8 +115,8 @@ function SuccessScreen({ onClose }) {
         </div>
         <p style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 9, color: "#c9993c", letterSpacing: "0.3em", textTransform: "uppercase", margin: "0 0 12px" }}>Reserva Confirmada</p>
         <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 36, fontWeight: 300, color: "#f5f0e8", margin: "0 0 12px" }}>Turno confirmado!</h2>
-        <p style={{ fontFamily: "'Montserrat', sans-serif", color: "#4a3820", fontSize: 12, margin: "0 0 40px", lineHeight: 1.7, letterSpacing: "0.03em" }}>Te esperamos. Podes cancelar con mas de 90 min de anticipacion.</p>
-        <button onClick={onClose} style={{ background: "transparent", border: "1px solid rgba(201,153,60,0.25)", color: "#4a3820", borderRadius: 2, padding: "14px 40px", fontSize: 10, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+        <p style={{ fontFamily: "'Montserrat', sans-serif", color: "#aaaaaa", fontSize: 12, margin: "0 0 40px", lineHeight: 1.7, letterSpacing: "0.03em" }}>Te esperamos. Podes cancelar con mas de 90 min de anticipacion.</p>
+        <button onClick={onClose} style={{ background: "transparent", border: "1px solid rgba(201,153,60,0.25)", color: "#aaaaaa", borderRadius: 2, padding: "14px 40px", fontSize: 10, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.2em", textTransform: "uppercase" }}>
           Volver al inicio
         </button>
       </div>
@@ -182,7 +182,7 @@ export default function BarberLanding({ barberId, barberName, onBack }) {
       {/* Header */}
       <div style={{ padding: "36px 28px 24px", borderBottom: "1px solid rgba(201,153,60,0.1)" }}>
         {onBack && (
-          <button onClick={onBack} style={{ background: "transparent", border: "none", color: "#4a3820", cursor: "pointer", fontSize: 10, marginBottom: 20, padding: 0, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+          <button onClick={onBack} style={{ background: "transparent", border: "none", color: "#888888", cursor: "pointer", fontSize: 10, marginBottom: 20, padding: 0, fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.15em", textTransform: "uppercase" }}>
             Volver al perfil
           </button>
         )}
@@ -192,7 +192,7 @@ export default function BarberLanding({ barberId, barberName, onBack }) {
             <h1 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 32, fontWeight: 400, margin: 0, color: "#f5f0e8" }}>{barberName || "Barberia"}</h1>
           </div>
           <div style={{ textAlign: "right" }}>
-            <p style={{ fontSize: 9, color: "#4a3820", letterSpacing: "0.1em", margin: "0 0 4px" }}>DISPONIBLES</p>
+            <p style={{ fontSize: 9, color: "#888888", letterSpacing: "0.1em", margin: "0 0 4px" }}>DISPONIBLES</p>
             <p style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 28, color: "#c9993c", margin: 0, fontWeight: 600 }}>{available}</p>
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function BarberLanding({ barberId, barberName, onBack }) {
               flex: 1, padding: "12px 8px", borderRadius: 2,
               background: selectedDate === day.value ? "rgba(201,153,60,0.15)" : "rgba(255,255,255,0.02)",
               border: `1px solid ${selectedDate === day.value ? "rgba(201,153,60,0.5)" : "rgba(255,255,255,0.06)"}`,
-              color: selectedDate === day.value ? "#c9993c" : "#3a2a18",
+              color: selectedDate === day.value ? "#c9993c" : "#888888",
               fontSize: 10, fontWeight: 600, cursor: "pointer",
               fontFamily: "'Montserrat', sans-serif", letterSpacing: "0.1em",
               textTransform: "uppercase", transition: "all 0.3s ease",
@@ -222,12 +222,12 @@ export default function BarberLanding({ barberId, barberName, onBack }) {
             <div style={{ width: 32, height: 32, border: "1px solid rgba(201,153,60,0.3)", borderTop: "1px solid #c9993c", borderRadius: "50%", margin: "0 auto", animation: "spin2 1s linear infinite" }} />
           </div>
         ) : slots.length === 0 ? (
-          <p style={{ color: "#2a2015", textAlign: "center", padding: "60px 0", fontSize: 12, letterSpacing: "0.1em" }}>No hay turnos para este dia.</p>
+          <p style={{ color: "#666666", textAlign: "center", padding: "60px 0", fontSize: 12, letterSpacing: "0.1em" }}>No hay turnos para este dia.</p>
         ) : (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ flex: 1, height: "0.5px", background: "rgba(201,153,60,0.15)" }} />
-              <p style={{ fontSize: 8, color: "#3a2a18", letterSpacing: "0.3em", textTransform: "uppercase", margin: 0 }}>MANANA</p>
+              <p style={{ fontSize: 8, color: "#888888", letterSpacing: "0.3em", textTransform: "uppercase", margin: 0 }}>MANANA</p>
               <div style={{ flex: 1, height: "0.5px", background: "rgba(201,153,60,0.15)" }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 28 }}>
@@ -236,7 +236,7 @@ export default function BarberLanding({ barberId, barberName, onBack }) {
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ flex: 1, height: "0.5px", background: "rgba(201,153,60,0.15)" }} />
-              <p style={{ fontSize: 8, color: "#3a2a18", letterSpacing: "0.3em", textTransform: "uppercase", margin: 0 }}>TARDE</p>
+              <p style={{ fontSize: 8, color: "#888888", letterSpacing: "0.3em", textTransform: "uppercase", margin: 0 }}>TARDE</p>
               <div style={{ flex: 1, height: "0.5px", background: "rgba(201,153,60,0.15)" }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
