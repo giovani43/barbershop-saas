@@ -1242,42 +1242,30 @@ function ConfirmStep({
 }
 
 // ── Step 5: Success ───────────────────────────────────────────────────────────
-function SuccessStep({ appt, dni, onRestart }) {
-  const [cancelState,    setCancelState]    = useState("idle"); // idle|confirming|loading|done|error
-  const [cancelMsg,      setCancelMsg]      = useState("");
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [reschedSlots,   setReschedSlots]   = useState([]);
-  const [reschedDate,    setReschedDate]    = useState(todayStr());
-  const [reschedLoading, setReschedLoading] = useState(false);
-  const [reschedMsg,     setReschedMsg]     = useState("");
-  const [newAppt,        setNewAppt]        = useState(null);
-  // Flags: use POST /book response immediately; refresh via GET for updated state
-  const [serverFlags,    setServerFlags]    = useState(null);
+function SuccessStep({ appt, dni, onRestart, onRebook }) {
+  const [cancelState, setCancelState] = useState("idle"); // idle|confirming|loading|done|error
+  const [cancelMsg,   setCancelMsg]   = useState("");
+  const [canCancel,   setCanCancel]   = useState(appt?.can_cancel ?? null);
 
   useEffect(() => {
     if (!appt?.id) return;
     fetch(`${API}/appointments/${appt.id}`)
       .then(r => r.json())
-      .then(d => { if (d && !d.error) setServerFlags(d); })
+      .then(d => { if (d && !d.error) setCanCancel(d.can_cancel ?? false); })
       .catch(() => {});
   }, [appt?.id]);
 
   if (!appt) return null;
 
   const id           = appt.id           || "";
-  const booking_code = newAppt?.booking_code || appt.booking_code || "";
-  const barber_name  = newAppt?.barber_name  || appt.barber_name  || "";
-  const service_name = newAppt?.service_name || appt.service_name || "";
-  const price        = newAppt?.price        ?? appt.price        ?? 0;
-  const absence_fee  = appt.absence_fee ?? 0;
-  const date         = newAppt?.date         || appt.date         || "";
-  const time         = newAppt?.time         || appt.time         || "";
+  const booking_code = appt.booking_code || "";
+  const barber_name  = appt.barber_name  || "";
+  const service_name = appt.service_name || "";
+  const price        = appt.price        ?? 0;
+  const absence_fee  = appt.absence_fee  ?? 0;
+  const date         = appt.date         || "";
+  const time         = appt.time         || "";
 
-  // Flags: use server refresh if available, fall back to POST /book response
-  const can_cancel     = serverFlags?.can_cancel     ?? appt.can_cancel     ?? false;
-  const can_reschedule = serverFlags?.can_reschedule ?? appt.can_reschedule ?? false;
-
-  // ── Cancel ──────────────────────────────────────────────────────────────────
   const doCancel = async () => {
     setCancelState("loading");
     try {
@@ -1293,48 +1281,6 @@ function SuccessStep({ appt, dni, onRestart }) {
     } catch (e) {
       setCancelState("error");
       setCancelMsg(e.message);
-    }
-  };
-
-  // ── Reschedule — load slots ─────────────────────────────────────────────────
-  const loadReschedSlots = async (dateStr) => {
-    setReschedLoading(true);
-    setReschedMsg("");
-    try {
-      const barberId = appt.barber_id || "";
-      const res = await fetch(`${API}/appointments/day?barber_id=${barberId}&date=${dateStr}`);
-      const json = await res.json();
-      setReschedSlots((json.slots || []).filter(s => s.status === "available"));
-    } catch { setReschedSlots([]); }
-    finally  { setReschedLoading(false); }
-  };
-
-  const openReschedule = () => {
-    setRescheduleOpen(true);
-    loadReschedSlots(reschedDate);
-  };
-
-  const doReschedule = async (newSlotId) => {
-    setReschedLoading(true);
-    setReschedMsg("");
-    try {
-      const res  = await fetch(`${API}/appointments/${id}/reschedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dni: (dni || "").replace(/\./g, "").trim(),
-          new_slot_id: newSlotId,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || json.error || "Error");
-      setNewAppt(json.appointment);
-      setRescheduleOpen(false);
-      setReschedMsg("¡Turno reprogramado!");
-    } catch (e) {
-      setReschedMsg(e.message);
-    } finally {
-      setReschedLoading(false);
     }
   };
 
@@ -1434,143 +1380,6 @@ function SuccessStep({ appt, dni, onRestart }) {
         </p>
       </div>
 
-      {/* Cancel / Reschedule */}
-      {cancelState === "done" ? (
-        <p style={{ color:C.green, fontSize:13, marginBottom:16 }}>{cancelMsg}</p>
-      ) : cancelState === "confirming" ? (
-        <div style={{ width:"100%", maxWidth:360, marginBottom:16, textAlign:"left" }}>
-          <p style={{ color:"#ccc", fontSize:13, marginBottom:12 }}>
-            ¿Confirmas la cancelación? Esta acción libera el slot.
-          </p>
-          <div style={{ display:"flex", gap:10 }}>
-            <button onClick={() => setCancelState("idle")} style={{
-              flex:1, padding:"12px", background:"transparent",
-              border:`1px solid ${C.border}`, borderRadius:10,
-              color:C.muted, fontSize:14, cursor:"pointer",
-            }}>
-              No, volver
-            </button>
-            <button onClick={doCancel} style={{
-              flex:1, padding:"12px",
-              background:"rgba(239,68,68,0.15)",
-              border:"1px solid rgba(239,68,68,0.4)",
-              borderRadius:10, color:C.red, fontWeight:700,
-              fontSize:14, cursor:"pointer",
-            }}>
-              Sí, cancelar
-            </button>
-          </div>
-        </div>
-      ) : cancelState === "error" ? (
-        <p style={{ color:C.red, fontSize:13, marginBottom:16 }}>{cancelMsg}</p>
-      ) : (
-        <div style={{ display:"flex", gap:10, width:"100%", maxWidth:360, marginBottom:16 }}>
-          {can_cancel && (
-            <button onClick={() => setCancelState("confirming")} style={{
-              flex:1, padding:"11px",
-              background:"rgba(239,68,68,0.1)",
-              border:"1px solid rgba(239,68,68,0.3)",
-              borderRadius:10, color:C.red,
-              fontSize:13, fontWeight:700, cursor:"pointer",
-            }}>
-              Cancelar turno
-            </button>
-          )}
-          {can_reschedule && !newAppt && (
-            <button onClick={openReschedule} style={{
-              flex:1, padding:"11px",
-              background:C.goldDim, border:`1px solid ${C.goldBorder}`,
-              borderRadius:10, color:C.gold,
-              fontSize:13, fontWeight:700, cursor:"pointer",
-            }}>
-              Reprogramar
-            </button>
-          )}
-        </div>
-      )}
-
-      {reschedMsg && (
-        <p style={{ color: reschedMsg.includes("!") ? C.green : C.red,
-                    fontSize:13, marginBottom:12 }}>
-          {reschedMsg}
-        </p>
-      )}
-
-      {/* Reschedule modal */}
-      {rescheduleOpen && (
-        <div style={{
-          position:"fixed", inset:0, background:"rgba(0,0,0,0.85)",
-          display:"flex", alignItems:"flex-end", justifyContent:"center",
-          zIndex:1000,
-        }}>
-          <div style={{
-            background:"#141414", borderRadius:"20px 20px 0 0",
-            width:"100%", maxWidth:480,
-            padding:"24px 20px 36px",
-            maxHeight:"80vh", overflowY:"auto",
-          }}>
-            <div style={{ display:"flex", justifyContent:"space-between",
-                          alignItems:"center", marginBottom:16 }}>
-              <h3 style={{ color:C.text, fontSize:16, fontWeight:700, margin:0 }}>
-                Elegí nuevo horario
-              </h3>
-              <button onClick={() => setRescheduleOpen(false)}
-                style={{ background:"none", border:"none", color:C.muted,
-                         fontSize:22, cursor:"pointer" }}>
-                ×
-              </button>
-            </div>
-
-            {/* Date picker */}
-            <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-              {[todayStr(), addDays(todayStr(),1), addDays(todayStr(),2)].map((d, i) => {
-                const active = d === reschedDate;
-                return (
-                  <button key={d} onClick={() => { setReschedDate(d); loadReschedSlots(d); }}
-                    style={{
-                      flex:1, padding:"8px 4px", borderRadius:8,
-                      background: active ? C.gold : C.card,
-                      border: `1px solid ${active ? C.gold : C.border}`,
-                      color: active ? "#000" : C.muted,
-                      fontWeight: active ? 700 : 400,
-                      fontSize:12, cursor:"pointer",
-                    }}>
-                    {labelDate(d, i)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {reschedLoading ? (
-              <p style={{ color:C.muted, textAlign:"center", padding:24 }}>Cargando...</p>
-            ) : reschedSlots.length === 0 ? (
-              <p style={{ color:C.muted, textAlign:"center", padding:24 }}>
-                Sin horarios disponibles este día
-              </p>
-            ) : (
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8 }}>
-                {reschedSlots.map(s => (
-                  <button key={s.id} onClick={() => doReschedule(s.id)} style={{
-                    padding:"12px 6px", borderRadius:8,
-                    background:"rgba(212,175,55,0.07)",
-                    border:"1.5px solid rgba(212,175,55,0.35)",
-                    color:C.gold, fontSize:14, fontWeight:600, cursor:"pointer",
-                  }}>
-                    {s.time}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {reschedMsg && (
-              <p style={{ color:C.red, fontSize:12, marginTop:12, textAlign:"center" }}>
-                {reschedMsg}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
       <button onClick={onRestart} style={{
         background:`linear-gradient(135deg, #C9A84C, #8a6a1e)`,
         border:"none", borderRadius:12, padding:"14px 40px",
@@ -1579,6 +1388,67 @@ function SuccessStep({ appt, dni, onRestart }) {
       }}>
         Volver al inicio
       </button>
+
+      {/* Cancel + Reprogramar */}
+      <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:360, marginTop:16 }}>
+        {cancelState === "done" ? (
+          <p style={{ color:C.green, fontSize:13, textAlign:"center", margin:0 }}>{cancelMsg}</p>
+        ) : cancelState === "confirming" ? (
+          <>
+            <p style={{ color:"#ccc", fontSize:13, textAlign:"center", margin:0 }}>
+              ¿Confirmás la cancelación? Esta acción libera el slot.
+            </p>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={() => setCancelState("idle")} style={{
+                flex:1, padding:"11px", background:"transparent",
+                border:`1px solid ${C.border}`, borderRadius:10,
+                color:C.muted, fontSize:13, cursor:"pointer",
+              }}>No, volver</button>
+              <button onClick={doCancel} style={{
+                flex:1, padding:"11px",
+                background:"rgba(239,68,68,0.15)",
+                border:"1px solid rgba(239,68,68,0.4)",
+                borderRadius:10, color:C.red, fontWeight:700,
+                fontSize:13, cursor:"pointer",
+              }}>Sí, cancelar</button>
+            </div>
+          </>
+        ) : cancelState === "loading" ? (
+          <p style={{ color:C.muted, fontSize:13, textAlign:"center", margin:0 }}>Cancelando...</p>
+        ) : (
+          <>
+            {cancelState === "error" && (
+              <p style={{ color:C.red, fontSize:12, textAlign:"center", margin:0 }}>{cancelMsg}</p>
+            )}
+            {canCancel === false ? (
+              <p style={{ color:C.muted, fontSize:12, textAlign:"center", margin:0 }}>
+                Cancelación no disponible (menos de 90 min)
+              </p>
+            ) : (
+              <button onClick={() => setCancelState("confirming")} style={{
+                width:"100%", padding:"13px",
+                background:"rgba(239,68,68,0.1)",
+                border:"1px solid rgba(239,68,68,0.4)",
+                borderRadius:12, color:C.red,
+                fontSize:13, fontWeight:700, letterSpacing:.5,
+                cursor:"pointer", textTransform:"uppercase",
+              }}>
+                Cancelar turno
+              </button>
+            )}
+            <button onClick={() => onRebook && onRebook(appt.barber_id)} style={{
+              width:"100%", padding:"13px",
+              background:"transparent",
+              border:`1.5px solid ${C.goldBorder}`,
+              borderRadius:12, color:C.gold,
+              fontSize:13, fontWeight:700, letterSpacing:.5,
+              cursor:"pointer", textTransform:"uppercase",
+            }}>
+              Reprogramar
+            </button>
+          </>
+        )}
+      </div>
 
       <a href="/mi-turno" style={{
         color:C.muted, fontSize:12, textDecoration:"underline",
@@ -1651,9 +1521,12 @@ function AuthWall({ onGoHome }) {
 
 // ── MisTurnosJwtPanel — mis turnos con JWT ────────────────────────────────────
 function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
-  const [turnos,  setTurnos]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
+  const [turnos,       setTurnos]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
+  const [cancellingId, setCancellingId] = useState(null);
+  const [cancelledIds, setCancelledIds] = useState(new Set());
+  const [cancelErrors, setCancelErrors] = useState({});
 
   useEffect(() => {
     const load = async () => {
@@ -1674,6 +1547,28 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
     };
     load();
   }, [clientToken]);
+
+  const doCancel = async (t) => {
+    setCancellingId(t.id);
+    setCancelErrors(prev => { const n = {...prev}; delete n[t.id]; return n; });
+    try {
+      const res  = await fetch(`${API}/appointments/${t.id}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${clientToken}`,
+        },
+        body: JSON.stringify({ dni: clientUser?.dni || "" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error");
+      setCancelledIds(prev => new Set([...prev, t.id]));
+    } catch (e) {
+      setCancelErrors(prev => ({ ...prev, [t.id]: e.message }));
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const ESTADO_COLOR = {
     pendiente: { bg:"rgba(212,175,55,0.12)", color:C.gold },
@@ -1744,6 +1639,50 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
                 <p style={{ color:C.muted, fontSize:11, margin:"4px 0 0" }}>
                   Código: {t.booking_code}
                 </p>
+              )}
+              {t.estado === "pendiente" && !cancelledIds.has(t.id) && (
+                <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                  {t.can_cancel === false ? (
+                    <span style={{ color:C.muted, fontSize:11, alignSelf:"center" }}>
+                      Cancelación no disponible
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => doCancel(t)}
+                      disabled={cancellingId === t.id}
+                      style={{
+                        flex:1, padding:"9px",
+                        background:"rgba(239,68,68,0.1)",
+                        border:"1px solid rgba(239,68,68,0.3)",
+                        borderRadius:8, color:C.red,
+                        fontSize:12, fontWeight:700,
+                        cursor: cancellingId === t.id ? "default" : "pointer",
+                        textTransform:"uppercase", letterSpacing:.3,
+                      }}
+                    >
+                      {cancellingId === t.id ? "Cancelando..." : "Cancelar"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navTo("/shop/mvzbarberia")}
+                    style={{
+                      flex:1, padding:"9px",
+                      background:"transparent",
+                      border:`1px solid ${C.goldBorder}`,
+                      borderRadius:8, color:C.gold,
+                      fontSize:12, fontWeight:700, cursor:"pointer",
+                      textTransform:"uppercase", letterSpacing:.3,
+                    }}
+                  >
+                    Reprogramar
+                  </button>
+                </div>
+              )}
+              {cancelledIds.has(t.id) && (
+                <p style={{ color:C.green, fontSize:12, margin:"8px 0 0" }}>Turno cancelado</p>
+              )}
+              {cancelErrors[t.id] && (
+                <p style={{ color:C.red, fontSize:11, margin:"6px 0 0" }}>{cancelErrors[t.id]}</p>
               )}
             </div>
           );
@@ -2136,7 +2075,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       {step >= 0 && step <= 4 && (
         <BackBtn onClick={() => {
           if (step === 0) {
-            if (onGoHome) { onGoHome(); } else { setStep(startStep); }
+            navTo("/");
             return;
           }
           if (step === 1) { setSelBarber(null); setUser(null); }
@@ -2236,6 +2175,14 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           appt={successData}
           dni={user?.dni}
           onRestart={restart}
+          onRebook={(barberId) => {
+            const barber = barbers.find(b => String(b.id) === String(barberId));
+            setSelBarber(barber || null);
+            setSelSlot(null);
+            setSelDate(todayStr());
+            setSuccessData(null);
+            setStep(barber ? 3 : 1);
+          }}
         />
       )}
 
