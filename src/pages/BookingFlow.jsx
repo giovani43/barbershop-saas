@@ -328,40 +328,47 @@ function MisTurnosPanel({ userData, dni, onBack, onClose }) {
         <p style={{ color:C.muted, fontSize:13, marginBottom:20 }}>No tenés un turno activo.</p>
       )}
 
-      {/* Historial */}
+      {/* Historial — incluye el turno activo si existe */}
       <h3 style={{ color:C.text, fontSize:14, fontWeight:700, margin:"0 0 12px" }}>
         Historial
       </h3>
-      {history.length === 0 ? (
-        <p style={{ color:C.muted, fontSize:13 }}>Nunca realizaste una reserva en MVZ Barbería.</p>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {history.map(h => (
-            <div key={h.id} style={{
-              background:C.card, border:`1px solid ${C.border}`,
-              borderRadius:12, padding:"12px 14px",
-              display:"flex", justifyContent:"space-between", alignItems:"center",
-            }}>
-              <div>
-                <p style={{ color:C.text, fontSize:13, fontWeight:600, margin:"0 0 2px" }}>
-                  {h.service_name}
-                </p>
-                <p style={{ color:C.muted, fontSize:11, margin:0 }}>
-                  {h.date} · {h.barber_name} · {fmtPrice(h.price)}
-                </p>
-              </div>
-              <span style={{
-                color: STATUS_COLOR[h.status] || C.muted,
-                background:"rgba(255,255,255,0.04)",
-                border:`1px solid ${STATUS_COLOR[h.status] || C.border}22`,
-                borderRadius:20, padding:"3px 9px", fontSize:10, fontWeight:700,
+      {(() => {
+        const activeRow = active && cancelState !== "done"
+          ? [{ id: active.id, service_name: active.service_name, date: active.date,
+               barber_name: active.barber_name, price: active.price, status: "booked" }]
+          : [];
+        const allItems = [...activeRow, ...history];
+        return allItems.length === 0 ? (
+          <p style={{ color:C.muted, fontSize:13 }}>Sin historial de reservas.</p>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {allItems.map(h => (
+              <div key={h.id} style={{
+                background:C.card, border:`1px solid ${C.border}`,
+                borderRadius:12, padding:"12px 14px",
+                display:"flex", justifyContent:"space-between", alignItems:"center",
               }}>
-                {STATUS_LABEL[h.status] || h.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+                <div>
+                  <p style={{ color:C.text, fontSize:13, fontWeight:600, margin:"0 0 2px" }}>
+                    {h.service_name}
+                  </p>
+                  <p style={{ color:C.muted, fontSize:11, margin:0 }}>
+                    {h.date} · {h.barber_name} · {fmtPrice(h.price)}
+                  </p>
+                </div>
+                <span style={{
+                  color: STATUS_COLOR[h.status] || C.muted,
+                  background:"rgba(255,255,255,0.04)",
+                  border:`1px solid ${STATUS_COLOR[h.status] || C.border}22`,
+                  borderRadius:20, padding:"3px 9px", fontSize:10, fontWeight:700,
+                }}>
+                  {STATUS_LABEL[h.status] || h.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Reschedule modal */}
       {reschedOpen && (
@@ -1538,7 +1545,7 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
         if (!ct.includes("application/json")) throw new Error("Error del servidor");
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Error");
-        setTurnos(json.turnos || []);
+        setTurnos(json.turnos || json.appointments || []);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -2072,9 +2079,8 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       {step >= 1 && step <= 4 && <Progress step={step} total={4} />}
 
       {/* Back button */}
-      {step >= 0 && step <= 4 && (
+      {step >= 1 && step <= 4 && (
         <BackBtn onClick={() => {
-          if (step === 0) { navTo("/"); return; }
           if (step === 1) { navTo("/"); return; }
           if (step === 2) { setSelService(null); }
           if (step === 3) { setSelSlot(null); }
