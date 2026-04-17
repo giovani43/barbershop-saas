@@ -2074,11 +2074,8 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       {/* Back button */}
       {step >= 0 && step <= 4 && (
         <BackBtn onClick={() => {
-          if (step === 0) {
-            navTo("/");
-            return;
-          }
-          if (step === 1) { setSelBarber(null); setUser(null); }
+          if (step === 0) { navTo("/"); return; }
+          if (step === 1) { navTo("/"); return; }
           if (step === 2) { setSelService(null); }
           if (step === 3) { setSelSlot(null); }
           setStep(s => s - 1);
