@@ -1701,8 +1701,8 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
 
 // ── Map panel ─────────────────────────────────────────────────────────────────
 function MapPanel() {
-  const LAT = -34.6008;
-  const LNG = -58.4378;
+  const LAT = -34.5997;
+  const LNG = -58.4369;
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <MapContainer
