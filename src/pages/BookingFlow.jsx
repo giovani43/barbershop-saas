@@ -1610,7 +1610,13 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
       )}
 
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-        {turnos.map(t => {
+        {[...turnos]
+          .sort((a, b) => {
+            const da = `${a.fecha || ""} ${a.hora || ""}`;
+            const db = `${b.fecha || ""} ${b.hora || ""}`;
+            return db.localeCompare(da);
+          })
+          .map(t => {
           const est = ESTADO_COLOR[t.estado] || ESTADO_COLOR.cancelado;
           return (
             <div key={t.id} style={{
@@ -1720,8 +1726,7 @@ function MapPanel() {
         <Marker position={[LAT, LNG]} icon={goldIcon}>
           <Popup>
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#111", lineHeight: 1.4 }}>
-              <strong>MVZ Barbería</strong><br/>
-              Humboldt 689, CABA
+              <strong>MVZ Barbería — Humboldt 689</strong>
             </div>
           </Popup>
         </Marker>
