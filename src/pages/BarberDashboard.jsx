@@ -26,6 +26,8 @@ const STATUS = {
   cancelled:   { label: "Cancelado",    color: C.red,     bg: C.redDim },
   completed:   { label: "Completado",   color: C.muted,   bg: "transparent" },
   no_show:     { label: "Ausente",      color: "#f97316", bg: "rgba(249,115,22,0.1)" },
+  present:     { label: "Presente",     color: "#22c55e", bg: "rgba(34,197,94,0.18)" },
+  confirmed:   { label: "Confirmado",   color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
 };
 
 function fmtPrice(p) {
@@ -561,6 +563,29 @@ function BarberPanel({ token, barber, onLogout }) {
     } catch { /* ignore network errors */ }
   };
 
+  const exportExcel = async () => {
+    try {
+      const res = await fetch(`${API}/dashboard/export-excel`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Error ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `turnos-${date}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(`No se pudo exportar: ${e.message}`);
+    }
+  };
+
   const chargeAbsence = async (slot) => {
     if (!window.confirm("¿Registrar cargo por ausencia (30% del precio)?")) return;
     try {
@@ -610,9 +635,12 @@ function BarberPanel({ token, barber, onLogout }) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadBlocks(); }, [loadBlocks]);
 
-  const booked    = slots.filter(s => ["booked","rescheduled"].includes(s.status));
+  const ACTIVE_STATUSES = ["booked","rescheduled","present","confirmed"];
+  const booked    = slots.filter(s => ACTIVE_STATUSES.includes(s.status));
   const available = slots.filter(s => s.status === "available").length;
-  const revenue   = booked.reduce((acc, s) => acc + s.price, 0);
+  const revenue   = slots
+    .filter(s => [...ACTIVE_STATUSES, "completed"].includes(s.status))
+    .reduce((acc, s) => acc + (s.price || 0), 0);
 
   return (
     <div style={{
@@ -629,21 +657,26 @@ function BarberPanel({ token, barber, onLogout }) {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         position: "sticky", top: 0, zIndex: 50,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Barber avatar / photo */}
           <div style={{
-            width: 36, height: 36, borderRadius: "50%",
+            width: 38, height: 38, borderRadius: "50%",
             border: `1.5px solid ${C.gold}`,
-            background: "linear-gradient(135deg, #1a1508, #2d2010)",
+            background: C.cardHigh,
             display: "flex", alignItems: "center", justifyContent: "center",
             overflow: "hidden", flexShrink: 0,
           }}>
-            <img src="/logo.jpg" alt="MVZ"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              onError={e => {
-                e.target.style.display = "none";
-                e.target.parentElement.innerHTML = `<span style="font-size:10px;font-weight:800;color:${C.gold};font-family:'Playfair Display',serif">MVZ</span>`;
-              }}
-            />
+            {barber.photo_url ? (
+              <img src={barber.photo_url} alt={barber.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span style={{
+                fontSize: 15, fontWeight: 800, color: C.gold,
+                fontFamily: "'Playfair Display', Georgia, serif",
+              }}>
+                {(barber.name || "B")[0].toUpperCase()}
+              </span>
+            )}
           </div>
           <div>
             <p style={{
@@ -731,6 +764,28 @@ function BarberPanel({ token, barber, onLogout }) {
           ))}
         </div>
 
+        {/* Export Excel */}
+        <button
+          onClick={exportExcel}
+          style={{
+            width: "100%", marginBottom: 20,
+            background: "transparent", border: `1px solid ${C.goldBorder}`,
+            borderRadius: 10, padding: "10px 16px",
+            color: C.gold, fontSize: 12, fontWeight: 700, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "'Inter', sans-serif", letterSpacing: "0.08em",
+            boxSizing: "border-box",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Exportar Excel
+        </button>
+
         {/* Slot list */}
         {loading ? (
           <p style={{ color: C.muted, textAlign: "center" }}>Cargando...</p>
@@ -741,9 +796,9 @@ function BarberPanel({ token, barber, onLogout }) {
                 No hay turnos para este día
               </p>
             )}
-            {slots.map(slot => {
+            {[...slots].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map(slot => {
               const st = STATUS[slot.status] || STATUS.available;
-              const hasClient = ["booked","rescheduled","no_show","cancelled"].includes(slot.status);
+              const hasClient = ["booked","rescheduled","no_show","cancelled","present","confirmed","completed"].includes(slot.status);
               const canCharge = slot.status === "no_show" && !slot.absence_charge_sent;
               return (
                 <div key={slot.id} style={{
