@@ -1828,7 +1828,8 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
 
   // Intercept browser back button while inside an active booking step.
   useEffect(() => {
-    const handlePop = () => {
+    const handlePop = (e) => {
+      if (!e.isTrusted) return; // synthetic navTo event — let App routing handle it
       if (step <= startStep || step === 5) return; // nothing to handle here
       if (step === 1) { setSelBarber(null); setUser(null); }
       if (step === 2) { setSelService(null); }
@@ -2086,7 +2087,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       {/* Back button */}
       {step >= 1 && step <= 4 && (
         <BackBtn onClick={() => {
-          if (step === 1) { navTo("/"); return; }
+          if (step === 1) { setStep(startStep); navTo("/"); return; }
           if (step === 2) { setSelService(null); }
           if (step === 3) { setSelSlot(null); }
           setStep(s => s - 1);
