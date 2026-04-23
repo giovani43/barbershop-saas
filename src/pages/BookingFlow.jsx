@@ -1547,6 +1547,11 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
   const [cancellingId, setCancellingId] = useState(null);
   const [cancelledIds, setCancelledIds] = useState(new Set());
   const [cancelErrors, setCancelErrors] = useState({});
+  const [reschedAppt,  setReschedAppt]  = useState(null);
+  const [reschedDate,  setReschedDate]  = useState(todayStr());
+  const [reschedSlots, setReschedSlots] = useState([]);
+  const [reschedLoad,  setReschedLoad]  = useState(false);
+  const [reschedMsg,   setReschedMsg]   = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -1588,6 +1593,38 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
     } finally {
       setCancellingId(null);
     }
+  };
+
+  const loadReschedSlots = async (barberId, d) => {
+    setReschedLoad(true);
+    try {
+      const res  = await fetch(`${API}/appointments/day?barber_id=${barberId}&date=${d}`);
+      const json = await res.json();
+      setReschedSlots((json.slots || []).filter(s => s.status === "available"));
+    } catch { setReschedSlots([]); }
+    finally  { setReschedLoad(false); }
+  };
+
+  const doReschedule = async (slotId) => {
+    setReschedLoad(true); setReschedMsg("");
+    try {
+      const res  = await fetch(`${API}/appointments/${reschedAppt.id}/reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${clientToken}` },
+        body: JSON.stringify({ dni: clientUser?.dni || "", new_slot_id: slotId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error");
+      setTurnos(prev => prev.map(t => t.id === reschedAppt.id
+        ? { ...t,
+            fecha: json.appointment?.date || t.fecha,
+            hora:  json.appointment?.time || t.hora,
+            can_reschedule: false }
+        : t
+      ));
+      setReschedAppt(null);
+    } catch(e) { setReschedMsg(e.message); }
+    finally    { setReschedLoad(false); }
   };
 
   const ESTADO_COLOR = {
@@ -1689,19 +1726,28 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
                       {cancellingId === t.id ? "Cancelando..." : "Cancelar"}
                     </button>
                   )}
-                  <button
-                    onClick={() => navTo("/shop/mvzbarberia")}
-                    style={{
-                      flex:1, padding:"9px",
-                      background:"transparent",
-                      border:`1px solid ${C.goldBorder}`,
-                      borderRadius:8, color:C.gold,
-                      fontSize:12, fontWeight:700, cursor:"pointer",
-                      textTransform:"uppercase", letterSpacing:.3,
-                    }}
-                  >
-                    Reprogramar
-                  </button>
+                  {t.can_reschedule && (
+                    <button
+                      onClick={() => {
+                        const d = todayStr();
+                        setReschedAppt(t);
+                        setReschedDate(d);
+                        setReschedSlots([]);
+                        setReschedMsg("");
+                        loadReschedSlots(t.barber_id, d);
+                      }}
+                      style={{
+                        flex:1, padding:"9px",
+                        background:"transparent",
+                        border:`1px solid ${C.goldBorder}`,
+                        borderRadius:8, color:C.gold,
+                        fontSize:12, fontWeight:700, cursor:"pointer",
+                        textTransform:"uppercase", letterSpacing:.3,
+                      }}
+                    >
+                      Reprogramar
+                    </button>
+                  )}
                 </div>
               )}
               {cancelledIds.has(t.id) && (
@@ -1714,6 +1760,52 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
           );
         })}
       </div>
+
+      {/* Modal reprogramar */}
+      {reschedAppt && (
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,0.85)",
+          display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100,
+        }}>
+          <div style={{
+            background:"#111", borderRadius:"20px 20px 0 0",
+            padding:"24px 20px 36px", width:"100%", maxWidth:480,
+            maxHeight:"75vh", overflowY:"auto",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <h3 style={{ color:C.text, fontSize:16, fontWeight:700, margin:0 }}>Reprogramar</h3>
+              <button onClick={() => setReschedAppt(null)} style={{
+                background:"transparent", border:"none", color:C.muted, fontSize:22, cursor:"pointer",
+              }}>×</button>
+            </div>
+            <input type="date" value={reschedDate}
+              onChange={e => { setReschedDate(e.target.value); loadReschedSlots(reschedAppt.barber_id, e.target.value); }}
+              style={{
+                width:"100%", boxSizing:"border-box",
+                background:"#0a0a0a", border:`1.5px solid ${C.border}`,
+                borderRadius:8, padding:"10px 12px", color:C.text, fontSize:14,
+                outline:"none", marginBottom:16,
+              }}
+            />
+            {reschedLoad ? (
+              <p style={{ color:C.muted, textAlign:"center" }}>Cargando...</p>
+            ) : reschedSlots.length === 0 ? (
+              <p style={{ color:C.muted, textAlign:"center", fontSize:13 }}>Sin horarios disponibles</p>
+            ) : (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {reschedSlots.map(s => (
+                  <button key={s.id} onClick={() => doReschedule(s.id)} style={{
+                    background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+                    borderRadius:8, padding:"10px 16px",
+                    color:C.gold, fontWeight:700, fontSize:14, cursor:"pointer",
+                  }}>{s.time}</button>
+                ))}
+              </div>
+            )}
+            {reschedMsg && <p style={{ color:C.red, fontSize:12, marginTop:12 }}>{reschedMsg}</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1820,6 +1912,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
   const [booking,       setBooking]       = useState(false);
   const [bookError,     setBookError]     = useState("");
   const [successData,   setSuccessData]   = useState(null);
+  const [reschedApptId, setReschedApptId] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/shops/${shopSlug}`)
@@ -1885,31 +1978,46 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       const headers = { "Content-Type": "application/json" };
       if (clientToken) headers["Authorization"] = `Bearer ${clientToken}`;
 
-      const res  = await fetch(`${API}/appointments/book`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          appointment_id: selSlot.id,
-          service_id:     selService.id,
-          user_id:        user.id,
-          terms_accepted: true,
-        }),
-      });
-      // Guard: si el servidor devuelve HTML (crash 500, etc.) dar un mensaje claro
-      const ct = res.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) {
-        throw new Error(`Error del servidor (${res.status}). Por favor intentá de nuevo.`);
+      if (reschedApptId) {
+        // ── Reprogramar turno existente ──────────────────────────────────────
+        const res  = await fetch(`${API}/appointments/${reschedApptId}/reschedule`, {
+          method: "POST", headers,
+          body: JSON.stringify({ dni: user?.dni || "", new_slot_id: selSlot.id }),
+        });
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("application/json"))
+          throw new Error(`Error del servidor (${res.status}). Por favor intentá de nuevo.`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || json.error || "Error al reprogramar");
+        setReschedApptId(null);
+        setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
+        setStep(5);
+      } else {
+        // ── Reserva nueva ────────────────────────────────────────────────────
+        const res  = await fetch(`${API}/appointments/book`, {
+          method: "POST", headers,
+          body: JSON.stringify({
+            appointment_id: selSlot.id,
+            service_id:     selService.id,
+            user_id:        user.id,
+            terms_accepted: true,
+          }),
+        });
+        // Guard: si el servidor devuelve HTML (crash 500, etc.) dar un mensaje claro
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("application/json"))
+          throw new Error(`Error del servidor (${res.status}). Por favor intentá de nuevo.`);
+        const json = await res.json();
+        if (res.status === 409 && json.active_appt_id) {
+          setActiveApptId(json.active_appt_id);
+          setBookError(json.error);
+          return;
+        }
+        if (!res.ok) throw new Error(json.error || "Error al reservar");
+        // Enriquecer con datos del barber_id para la pantalla de reprogramación
+        setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
+        setStep(5);
       }
-      const json = await res.json();
-      if (res.status === 409 && json.active_appt_id) {
-        setActiveApptId(json.active_appt_id);
-        setBookError(json.error);
-        return;
-      }
-      if (!res.ok) throw new Error(json.error || "Error al reservar");
-      // Enriquecer con datos del barber_id para la pantalla de reprogramación
-      setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
-      setStep(5);
     } catch (e) {
       setBookError(e.message);
     } finally {
@@ -1929,6 +2037,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
     setActiveApptId(null);
     setSuccessData(null);
     setBookError("");
+    setReschedApptId(null);
   };
 
   return (
@@ -2204,6 +2313,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           onRestart={restart}
           onRebook={(barberId) => {
             const barber = barbers.find(b => String(b.id) === String(barberId));
+            setReschedApptId(successData?.id || null);
             setSelBarber(barber || null);
             setSelSlot(null);
             setSelDate(todayStr());
