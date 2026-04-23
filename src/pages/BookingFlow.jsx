@@ -741,7 +741,7 @@ function IdentifyStep({ onIdentified, misTurnosFirst = false, onGoHome }) {
 }
 
 // ── Step 1: Barber select ─────────────────────────────────────────────────────
-function BarberStep({ barbers, onSelect, shopSlug, onQuickBook }) {
+function BarberStep({ barbers, onSelect, shopSlug, onQuickBook, onGoHome }) {
   const [quickSlots, setQuickSlots] = useState([]);
   const [qLoading,   setQLoading]   = useState(true);
 
@@ -895,6 +895,19 @@ function BarberStep({ barbers, onSelect, shopSlug, onQuickBook }) {
           </div>
         )}
       </div>
+
+      <button
+        onClick={() => { if (onGoHome) onGoHome(); else navTo("/"); }}
+        style={{
+          marginTop:24, width:"100%", padding:"13px",
+          background:"transparent", border:`1px solid ${C.border}`,
+          borderRadius:12, color:C.muted,
+          fontSize:13, fontWeight:700, letterSpacing:.5,
+          cursor:"pointer", textTransform:"uppercase",
+        }}
+      >
+        Ir al inicio
+      </button>
     </div>
   );
 }
@@ -1452,16 +1465,6 @@ function SuccessStep({ appt, dni, onRestart, onRebook }) {
               cursor:"pointer", textTransform:"uppercase",
             }}>
               Reprogramar
-            </button>
-            <button onClick={() => navTo("/")} style={{
-              width:"100%", padding:"13px",
-              background:"transparent",
-              border:`1px solid ${C.border}`,
-              borderRadius:12, color:C.muted,
-              fontSize:13, fontWeight:700, letterSpacing:.5,
-              cursor:"pointer", textTransform:"uppercase",
-            }}>
-              Ir al inicio
             </button>
           </>
         )}
@@ -2154,6 +2157,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           barbers={barbers}
           onSelect={b => { setSelBarber(b); setSelSlot(null); setStep(2); }}
           shopSlug={shopSlug}
+          onGoHome={onGoHome}
           onQuickBook={(b, dateIso, slot) => {
             setSelBarber(b);
             setSelDate(dateIso);
