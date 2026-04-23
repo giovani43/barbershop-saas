@@ -1453,6 +1453,16 @@ function SuccessStep({ appt, dni, onRestart, onRebook }) {
             }}>
               Reprogramar
             </button>
+            <button onClick={() => navTo("/")} style={{
+              width:"100%", padding:"13px",
+              background:"transparent",
+              border:`1px solid ${C.border}`,
+              borderRadius:12, color:C.muted,
+              fontSize:13, fontWeight:700, letterSpacing:.5,
+              cursor:"pointer", textTransform:"uppercase",
+            }}>
+              Ir al inicio
+            </button>
           </>
         )}
       </div>
