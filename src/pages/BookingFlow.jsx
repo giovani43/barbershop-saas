@@ -21,7 +21,7 @@ const goldIcon = new L.Icon({
   shadowSize:    [41, 41],
 });
 
-const API = "https://web-production-d26db.up.railway.app/api/v1";
+const API = "https://barbershop-api-vpz8.onrender.com/api/v1";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE = "https://web-production-d26db.up.railway.app/api/v1";
+const API_BASE = "https://barbershop-api-vpz8.onrender.com/api/v1";
 
 export default function ShopPage({ shopSlug }) {
   const [shop, setShop] = useState(null);

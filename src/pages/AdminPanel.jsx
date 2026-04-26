@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-const API = "https://web-production-d26db.up.railway.app/api/v1";
+const API = "https://barbershop-api-vpz8.onrender.com/api/v1";
 
 const C = {
   gold:       "#C9A84C",

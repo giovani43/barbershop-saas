@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import BarberLanding from "./BarberLanding";
 
-const API_BASE = "https://web-production-d26db.up.railway.app/api/v1";
+const API_BASE = "https://barbershop-api-vpz8.onrender.com/api/v1";
 
 const WORKS = [
   "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=400",
