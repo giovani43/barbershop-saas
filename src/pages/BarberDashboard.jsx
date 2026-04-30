@@ -655,6 +655,7 @@ function BarberPanel({ token, barber, onLogout }) {
         borderBottom: `1px solid ${C.goldBorder}`,
         padding: "14px 20px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
+        flexWrap: "wrap", rowGap: 10,
         position: "sticky", top: 0, zIndex: 50,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -722,23 +723,20 @@ function BarberPanel({ token, barber, onLogout }) {
             Salir
           </button>
         </div>
+        <input
+          type="date" value={date}
+          onChange={e => setDate(e.target.value)}
+          style={{
+            flexBasis: "100%", boxSizing: "border-box",
+            background: "#0d0d0d", border: `1px solid ${C.goldBorder}`,
+            borderRadius: 8, padding: "9px 12px",
+            color: C.text, fontSize: 14, outline: "none",
+            colorScheme: "dark",
+          }}
+        />
       </div>
 
       <div style={{ padding: "20px 16px", maxWidth: 1100, margin: "0 auto" }}>
-        {/* Date picker */}
-        <div style={{ marginBottom: 20 }}>
-          <input
-            type="date" value={date}
-            onChange={e => setDate(e.target.value)}
-            style={{
-              background: C.card, border: `1px solid ${C.border}`,
-              borderRadius: 10, padding: "10px 14px",
-              color: C.text, fontSize: 14, outline: "none", width: "100%",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
-
         {/* Stats */}
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           {[
@@ -962,9 +960,14 @@ function BarberPanel({ token, barber, onLogout }) {
                       background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
                       borderRadius: 7, padding: "5px 12px",
                       color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                      flexShrink: 0,
+                      flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
                     }}
                   >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                    </svg>
                     Desbloquear
                   </button>
                 </div>
