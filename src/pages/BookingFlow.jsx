@@ -1262,10 +1262,16 @@ function ConfirmStep({
 }
 
 // ── Step 5: Success ───────────────────────────────────────────────────────────
-function SuccessStep({ appt, dni, onRestart, onRebook }) {
-  const [cancelState, setCancelState] = useState("idle"); // idle|confirming|loading|done|error
-  const [cancelMsg,   setCancelMsg]   = useState("");
-  const [canCancel,   setCanCancel]   = useState(appt?.can_cancel ?? null);
+function SuccessStep({ appt, dni, onRestart }) {
+  const [cancelState,  setCancelState]  = useState("idle"); // idle|confirming|loading|done|error
+  const [cancelMsg,    setCancelMsg]    = useState("");
+  const [canCancel,    setCanCancel]    = useState(appt?.can_cancel ?? null);
+  const [reschedOpen,  setReschedOpen]  = useState(false);
+  const [reschedDate,  setReschedDate]  = useState(todayStr());
+  const [reschedSlots, setReschedSlots] = useState([]);
+  const [reschedLoad,  setReschedLoad]  = useState(false);
+  const [reschedMsg,   setReschedMsg]   = useState("");
+  const [reschedResult,setReschedResult]= useState(null);
 
   useEffect(() => {
     if (!appt?.id) return;
@@ -1302,6 +1308,34 @@ function SuccessStep({ appt, dni, onRestart, onRebook }) {
       setCancelState("error");
       setCancelMsg(e.message);
     }
+  };
+
+  const loadReschedSlots = async (date) => {
+    setReschedLoad(true); setReschedMsg("");
+    try {
+      const res  = await fetch(`${API}/appointments/day?barber_id=${appt.barber_id}&date=${date}`);
+      const json = await res.json();
+      setReschedSlots((json.slots || []).filter(s => s.status === "available"));
+    } catch { setReschedSlots([]); }
+    finally  { setReschedLoad(false); }
+  };
+
+  const doReschedule = async (slotId) => {
+    setReschedLoad(true); setReschedMsg("");
+    try {
+      const { token } = getClientAuth();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res  = await fetch(`${API}/appointments/${id}/reschedule`, {
+        method: "PATCH", headers,
+        body: JSON.stringify({ slot_id: slotId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || json.error || "Error al reprogramar");
+      setReschedResult(json.appointment);
+      setReschedOpen(false);
+    } catch (e) { setReschedMsg(e.message); }
+    finally    { setReschedLoad(false); }
   };
 
   return (
@@ -1411,7 +1445,28 @@ function SuccessStep({ appt, dni, onRestart, onRebook }) {
 
       {/* Cancel + Reprogramar */}
       <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:360, marginTop:16 }}>
-        {cancelState === "done" ? (
+        {reschedResult ? (
+          <>
+            <p style={{ color:C.green, fontSize:13, textAlign:"center", margin:0 }}>
+              ¡Turno reprogramado para el {reschedResult.date} a las {reschedResult.time}!
+            </p>
+            <a
+              href={`https://wa.me/5491164206213?text=${encodeURIComponent(
+                `Hola! Reprogramé mi turno para el ${reschedResult.date} a las ${reschedResult.time}. Código: ${reschedResult.booking_code || ""}`
+              )}`}
+              target="_blank" rel="noreferrer"
+              style={{
+                width:"100%", padding:"13px", boxSizing:"border-box",
+                background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.3)",
+                borderRadius:12, color:C.green, fontWeight:700, fontSize:13,
+                letterSpacing:.5, cursor:"pointer", textTransform:"uppercase",
+                textDecoration:"none", display:"block", textAlign:"center",
+              }}
+            >
+              Confirmar por WhatsApp
+            </a>
+          </>
+        ) : cancelState === "done" ? (
           <p style={{ color:C.green, fontSize:13, textAlign:"center", margin:0 }}>{cancelMsg}</p>
         ) : cancelState === "confirming" ? (
           <>
@@ -1456,7 +1511,7 @@ function SuccessStep({ appt, dni, onRestart, onRebook }) {
                 Cancelar turno
               </button>
             )}
-            <button onClick={() => onRebook && onRebook(appt.barber_id)} style={{
+            <button onClick={() => { setReschedOpen(true); loadReschedSlots(reschedDate); }} style={{
               width:"100%", padding:"13px",
               background:"transparent",
               border:`1.5px solid ${C.goldBorder}`,
@@ -1476,6 +1531,52 @@ function SuccessStep({ appt, dni, onRestart, onRebook }) {
       }}>
         Ver mi turno más tarde
       </a>
+
+      {/* Modal reprogramar */}
+      {reschedOpen && (
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,0.85)",
+          display:"flex", alignItems:"flex-end", justifyContent:"center", zIndex:100,
+        }}>
+          <div style={{
+            background:"#111", borderRadius:"20px 20px 0 0",
+            padding:"24px 20px 36px", width:"100%", maxWidth:480,
+            maxHeight:"75vh", overflowY:"auto",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <h3 style={{ color:C.text, fontSize:16, fontWeight:700, margin:0 }}>Elegí nuevo horario</h3>
+              <button onClick={() => setReschedOpen(false)} style={{
+                background:"transparent", border:"none", color:C.muted, fontSize:22, cursor:"pointer",
+              }}>×</button>
+            </div>
+            <input type="date" value={reschedDate}
+              onChange={e => { setReschedDate(e.target.value); loadReschedSlots(e.target.value); }}
+              style={{
+                width:"100%", boxSizing:"border-box",
+                background:"#0a0a0a", border:`1.5px solid ${C.border}`,
+                borderRadius:8, padding:"10px 12px", color:C.text, fontSize:14,
+                outline:"none", marginBottom:16,
+              }}
+            />
+            {reschedLoad ? (
+              <p style={{ color:C.muted, textAlign:"center" }}>Cargando...</p>
+            ) : reschedSlots.length === 0 ? (
+              <p style={{ color:C.muted, textAlign:"center", fontSize:13 }}>Sin horarios disponibles</p>
+            ) : (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {reschedSlots.map(s => (
+                  <button key={s.id} onClick={() => doReschedule(s.id)} disabled={reschedLoad} style={{
+                    background:C.goldDim, border:`1px solid ${C.goldBorder}`,
+                    borderRadius:8, padding:"10px 16px",
+                    color:C.gold, fontWeight:700, fontSize:14, cursor:"pointer",
+                  }}>{s.time}</button>
+                ))}
+              </div>
+            )}
+            {reschedMsg && <p style={{ color:C.red, fontSize:12, marginTop:12 }}>{reschedMsg}</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1609,19 +1710,25 @@ function MisTurnosJwtPanel({ clientToken, clientUser, onClose }) {
     setReschedLoad(true); setReschedMsg("");
     try {
       const res  = await fetch(`${API}/appointments/${reschedAppt.id}/reschedule`, {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${clientToken}` },
-        body: JSON.stringify({ dni: clientUser?.dni || "", new_slot_id: slotId }),
+        body: JSON.stringify({ slot_id: slotId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || json.error || "Error");
+      const upd = json.appointment || {};
       setTurnos(prev => prev.map(t => t.id === reschedAppt.id
         ? { ...t,
-            fecha: json.appointment?.date || t.fecha,
-            hora:  json.appointment?.time || t.hora,
+            fecha: upd.date || t.fecha,
+            hora:  upd.time || t.hora,
+            status: "rescheduled",
             can_reschedule: false }
         : t
       ));
+      const waText = encodeURIComponent(
+        `Hola! Reprogramé mi turno con ${upd.barber_name || "el barbero"} para el ${upd.date || ""} a las ${upd.time || ""}. Código: ${upd.booking_code || ""}`
+      );
+      window.open(`https://wa.me/5491164206213?text=${waText}`, "_blank");
       setReschedAppt(null);
     } catch(e) { setReschedMsg(e.message); }
     finally    { setReschedLoad(false); }
@@ -1981,8 +2088,8 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
       if (reschedApptId) {
         // ── Reprogramar turno existente ──────────────────────────────────────
         const res  = await fetch(`${API}/appointments/${reschedApptId}/reschedule`, {
-          method: "POST", headers,
-          body: JSON.stringify({ dni: user?.dni || "", new_slot_id: selSlot.id }),
+          method: "PATCH", headers,
+          body: JSON.stringify({ slot_id: selSlot.id }),
         });
         const ct = res.headers.get("content-type") || "";
         if (!ct.includes("application/json"))
@@ -2311,15 +2418,6 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           appt={successData}
           dni={user?.dni}
           onRestart={restart}
-          onRebook={(barberId) => {
-            const barber = barbers.find(b => String(b.id) === String(barberId));
-            setReschedApptId(successData?.id || null);
-            setSelBarber(barber || null);
-            setSelSlot(null);
-            setSelDate(todayStr());
-            setSuccessData(null);
-            setStep(barber ? 3 : 1);
-          }}
         />
       )}
 
