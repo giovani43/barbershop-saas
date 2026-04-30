@@ -565,7 +565,7 @@ function BarberPanel({ token, barber, onLogout }) {
 
   const exportExcel = async () => {
     try {
-      const res = await fetch(`${API}/dashboard/export-excel`, {
+      const res = await fetch(`${API}/barber/export-excel`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
