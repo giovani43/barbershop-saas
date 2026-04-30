@@ -20,12 +20,12 @@ const C = {
 };
 
 const STATUS = {
-  booked:      { label: "Reservado",    color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
-  rescheduled: { label: "Reprogramado", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+  booked:      { label: "Pendiente",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  rescheduled: { label: "Reprogramado", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   available:   { label: "Disponible",   color: "#555",    bg: "transparent" },
   cancelled:   { label: "Cancelado",    color: C.red,     bg: C.redDim },
-  completed:   { label: "Completado",   color: C.muted,   bg: "transparent" },
-  no_show:     { label: "Ausente",      color: "#f97316", bg: "rgba(249,115,22,0.1)" },
+  completed:   { label: "Completado",   color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
+  no_show:     { label: "Ausente",      color: C.red,     bg: C.redDim },
   present:     { label: "Presente",     color: "#22c55e", bg: "rgba(34,197,94,0.18)" },
   confirmed:   { label: "Confirmado",   color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
 };
@@ -724,7 +724,7 @@ function BarberPanel({ token, barber, onLogout }) {
         </div>
       </div>
 
-      <div style={{ padding: "20px 16px", maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ padding: "20px 16px", maxWidth: 1100, margin: "0 auto" }}>
         {/* Date picker */}
         <div style={{ marginBottom: 20 }}>
           <input
@@ -786,81 +786,135 @@ function BarberPanel({ token, barber, onLogout }) {
           Exportar Excel
         </button>
 
-        {/* Slot list */}
+        {/* Slot table */}
         {loading ? (
           <p style={{ color: C.muted, textAlign: "center" }}>Cargando...</p>
+        ) : slots.length === 0 ? (
+          <p style={{ color: C.muted, textAlign: "center", fontSize: 14 }}>
+            No hay turnos para este día
+          </p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {slots.length === 0 && (
-              <p style={{ color: C.muted, textAlign: "center", fontSize: 14 }}>
-                No hay turnos para este día
-              </p>
-            )}
-            {[...slots].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map(slot => {
-              const st = STATUS[slot.status] || STATUS.available;
-              const hasClient = ["booked","rescheduled","no_show","cancelled","present","confirmed","completed"].includes(slot.status);
-              const canCharge = slot.status === "no_show" && !slot.absence_charge_sent;
-              return (
-                <div key={slot.id} style={{
-                  background: C.card, border: `1px solid ${C.border}`,
-                  borderRadius: 12, padding: "12px 16px",
-                  opacity: slot.status === "available" ? 0.45 : 1,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span style={{ color: C.gold, fontWeight: 800, fontSize: 16, minWidth: 48 }}>
+          <div style={{
+            overflowX: "auto", WebkitOverflowScrolling: "touch",
+            borderRadius: 12, border: `1px solid ${C.border}`,
+          }}>
+            <table style={{
+              width: "100%", borderCollapse: "collapse", minWidth: 760,
+              fontFamily: "'Inter', -apple-system, sans-serif",
+            }}>
+              <thead>
+                <tr style={{ background: "#161616", borderBottom: `1px solid ${C.goldBorder}` }}>
+                  {["Hora","Cliente","DNI","Teléfono","Servicio","Precio","Pago","Estado","Acciones"].map(h => (
+                    <th key={h} style={{
+                      padding: "10px 12px", textAlign: "left",
+                      color: C.gold, fontSize: 10, fontWeight: 700,
+                      textTransform: "uppercase", letterSpacing: "0.08em",
+                      whiteSpace: "nowrap",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...slots].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((slot, idx) => {
+                  const st = STATUS[slot.status] || STATUS.available;
+                  const hasClient = ["booked","rescheduled","no_show","cancelled","present","confirmed","completed"].includes(slot.status);
+                  const canCharge = slot.status === "no_show" && !slot.absence_charge_sent;
+                  return (
+                    <tr key={slot.id} style={{
+                      background: idx % 2 === 0 ? C.card : "#131313",
+                      borderBottom: `1px solid ${C.border}`,
+                      opacity: slot.status === "available" ? 0.4 : 1,
+                    }}>
+                      <td style={{ padding: "11px 12px", color: C.gold, fontWeight: 800, fontSize: 15, whiteSpace: "nowrap" }}>
                         {slot.time}
-                      </span>
-                      <div>
-                        {hasClient ? (
-                          <>
-                            <p style={{ color: C.text, fontWeight: 600, fontSize: 13, margin: 0 }}>
-                              {slot.client_name || "Cliente"}
-                            </p>
-                            <p style={{ color: C.muted, fontSize: 12, margin: "2px 0 0" }}>
-                              {slot.client_dni && <span style={{ marginRight: 6 }}>DNI {slot.client_dni} ·</span>}
-                              {slot.service_name} · {fmtPrice(slot.price)}
-                            </p>
-                          </>
+                      </td>
+                      <td style={{ padding: "11px 12px", color: C.text, fontWeight: 600, fontSize: 13, whiteSpace: "nowrap" }}>
+                        {hasClient ? (slot.client_name || "—") : "—"}
+                      </td>
+                      <td style={{ padding: "11px 12px", color: C.muted, fontSize: 12, whiteSpace: "nowrap" }}>
+                        {slot.client_dni || "—"}
+                      </td>
+                      <td style={{ padding: "11px 12px", fontSize: 12, whiteSpace: "nowrap" }}>
+                        {slot.client_wa ? (
+                          <a
+                            href={`https://wa.me/${normalizeWaNumber(slot.client_wa)}`}
+                            target="_blank" rel="noreferrer"
+                            style={{ color: C.green, textDecoration: "none" }}
+                          >
+                            {slot.client_wa}
+                          </a>
                         ) : (
-                          <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>
-                            {slot.status === "available" ? "Disponible" : slot.service_name || "—"}
-                          </p>
+                          <span style={{ color: C.muted }}>—</span>
                         )}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <span style={{
-                        background: st.bg, color: st.color,
-                        borderRadius: 20, padding: "3px 10px",
-                        fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
-                      }}>
-                        {st.label}
-                      </span>
-                      {slot.absence_charge_sent && (
-                        <span style={{ color: "#f97316", fontSize: 10, fontWeight: 600 }}>
-                          Cargo: {fmtPrice(slot.absence_charge_amount)}
+                      </td>
+                      <td style={{ padding: "11px 12px", color: C.text, fontSize: 12, whiteSpace: "nowrap" }}>
+                        {slot.service_name || "—"}
+                      </td>
+                      <td style={{ padding: "11px 12px", color: C.text, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {hasClient ? fmtPrice(slot.price) : "—"}
+                      </td>
+                      <td style={{ padding: "11px 12px", color: C.muted, fontSize: 12, whiteSpace: "nowrap" }}>
+                        {hasClient ? "Efectivo / MP" : "—"}
+                      </td>
+                      <td style={{ padding: "11px 12px" }}>
+                        <span style={{
+                          display: "inline-block",
+                          background: st.bg, color: st.color,
+                          borderRadius: 20, padding: "3px 10px",
+                          fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+                        }}>
+                          {st.label}
                         </span>
-                      )}
-                    </div>
-                  </div>
-                  {canCharge && (
-                    <button
-                      onClick={() => chargeAbsence(slot)}
-                      style={{
-                        marginTop: 10, width: "100%",
-                        background: "rgba(249,115,22,0.12)",
-                        border: "1px solid rgba(249,115,22,0.4)",
-                        borderRadius: 8, padding: "8px 0",
-                        color: "#f97316", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                      }}
-                    >
-                      Cobrar ausencia (30%)
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                        {slot.absence_charge_sent && (
+                          <div style={{ color: C.red, fontSize: 10, fontWeight: 600, marginTop: 3, whiteSpace: "nowrap" }}>
+                            Cargo: {fmtPrice(slot.absence_charge_amount)}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: "11px 12px", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          {hasClient && (
+                            <button
+                              onClick={() => setShowQR(true)}
+                              title="Escanear QR del cliente"
+                              style={{
+                                background: C.goldDim, border: `1px solid ${C.goldBorder}`,
+                                borderRadius: 7, padding: "6px 10px",
+                                color: C.gold, fontSize: 11, fontWeight: 700,
+                                cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                   stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                              </svg>
+                              QR
+                            </button>
+                          )}
+                          {canCharge && (
+                            <button
+                              onClick={() => chargeAbsence(slot)}
+                              title="Cobrar cargo por ausencia (30%)"
+                              style={{
+                                background: "rgba(249,115,22,0.12)",
+                                border: "1px solid rgba(249,115,22,0.4)",
+                                borderRadius: 7, padding: "6px 10px",
+                                color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer",
+                              }}
+                            >
+                              30%
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
