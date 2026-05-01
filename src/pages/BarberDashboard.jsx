@@ -504,6 +504,10 @@ function BarberPanel({ token, barber, onLogout }) {
   const [blockSaving, setBlockSaving] = useState(false);
   const [blockErr,    setBlockErr]    = useState("");
 
+  const [noShowModal,   setNoShowModal]   = useState(null); // slot | null
+  const [noShowLoading, setNoShowLoading] = useState(false);
+  const [noShowError,   setNoShowError]   = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     // date is always YYYY-MM-DD (todayAR uses sv-SE locale; input[type=date] .value is ISO)
@@ -633,6 +637,25 @@ function BarberPanel({ token, barber, onLogout }) {
       load();
     } catch (e) {
       alert(e.message);
+    }
+  };
+
+  const markNoShow = async () => {
+    if (!noShowModal) return;
+    setNoShowLoading(true); setNoShowError("");
+    try {
+      const res  = await fetch(`${API}/appointments/${noShowModal.id}/no-show`, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      setNoShowModal(null);
+      load();
+    } catch (e) {
+      setNoShowError(e.message);
+    } finally {
+      setNoShowLoading(false);
     }
   };
 
@@ -820,7 +843,8 @@ function BarberPanel({ token, barber, onLogout }) {
                 {[...slots].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((slot, idx) => {
                   const st = STATUS[slot.status] || STATUS.available;
                   const hasClient = ["booked","rescheduled","no_show","cancelled","present","confirmed","completed"].includes(slot.status);
-                  const canCharge = slot.status === "no_show" && !slot.absence_charge_sent;
+                  const canCharge    = slot.status === "no_show" && !slot.absence_charge_sent;
+                  const canMarkAbsent = ["booked","rescheduled","confirmed"].includes(slot.status);
                   return (
                     <tr key={slot.id} style={{
                       background: idx % 2 === 0 ? C.card : "#131313",
@@ -855,8 +879,16 @@ function BarberPanel({ token, barber, onLogout }) {
                       <td style={{ padding: "11px 12px", color: C.text, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                         {hasClient ? fmtPrice(slot.price) : "—"}
                       </td>
-                      <td style={{ padding: "11px 12px", color: C.muted, fontSize: 12, whiteSpace: "nowrap" }}>
-                        {hasClient ? "Efectivo / MP" : "—"}
+                      <td style={{ padding: "11px 12px", fontSize: 12, whiteSpace: "nowrap" }}>
+                        {slot.status === "no_show" ? (
+                          <span style={{ color: C.red, fontWeight: 700 }}>
+                            ${Math.round((slot.price || 0) * 0.30).toLocaleString("es-AR")} <span style={{ fontWeight: 400 }}>(pendiente)</span>
+                          </span>
+                        ) : hasClient ? (
+                          <span style={{ color: C.muted }}>Efectivo / MP</span>
+                        ) : (
+                          <span style={{ color: C.muted }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: "11px 12px" }}>
                         <span style={{
@@ -894,6 +926,27 @@ function BarberPanel({ token, barber, onLogout }) {
                                 <rect x="3" y="14" width="7" height="7" rx="1"/>
                               </svg>
                               QR
+                            </button>
+                          )}
+                          {canMarkAbsent && (
+                            <button
+                              onClick={() => { setNoShowError(""); setNoShowModal(slot); }}
+                              title="Marcar como ausente"
+                              style={{
+                                background: "rgba(239,68,68,0.12)",
+                                border: "1px solid rgba(239,68,68,0.4)",
+                                borderRadius: 7, padding: "6px 10px",
+                                color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 4,
+                              }}
+                            >
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                   stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="15" y1="9" x2="9" y2="15"/>
+                                <line x1="9" y1="9" x2="15" y2="15"/>
+                              </svg>
+                              Ausente
                             </button>
                           )}
                           {canCharge && (
@@ -984,6 +1037,82 @@ function BarberPanel({ token, barber, onLogout }) {
       {/* ── QR Scanner ───────────────────────────────────────────────────────── */}
       {showQR && (
         <QRScanner token={token} onClose={() => { setShowQR(false); load(); }} />
+      )}
+
+      {/* ── Modal ausencia ───────────────────────────────────────────────────── */}
+      {noShowModal && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 250, padding: 20,
+        }}>
+          <div style={{
+            background: "#0f0f0f", border: `1px solid ${C.goldBorder}`,
+            borderRadius: 16, padding: "28px 24px",
+            width: "100%", maxWidth: 400,
+          }}>
+            <h3 style={{ color: C.text, fontSize: 17, fontWeight: 700, margin: "0 0 14px",
+              fontFamily: "'Playfair Display', Georgia, serif" }}>
+              Confirmar ausencia
+            </h3>
+            <p style={{ color: C.text, fontSize: 14, margin: "0 0 16px", lineHeight: 1.5 }}>
+              ¿Confirmar ausencia de{" "}
+              <strong style={{ color: C.gold }}>{noShowModal.client_name || "cliente"}</strong>?
+            </p>
+            <div style={{
+              background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)",
+              borderRadius: 10, padding: "14px 16px", marginBottom: 20,
+            }}>
+              <p style={{ color: C.muted, fontSize: 12, margin: "0 0 6px" }}>
+                Se generará un cargo de:
+              </p>
+              <p style={{ color: C.red, fontSize: 22, fontWeight: 800, margin: "0 0 2px",
+                fontFamily: "'Playfair Display', Georgia, serif" }}>
+                ${Math.round((noShowModal.price || 0) * 0.30).toLocaleString("es-AR")}
+              </p>
+              <p style={{ color: C.muted, fontSize: 11, margin: "0 0 8px" }}>
+                30% de ${Number(noShowModal.price || 0).toLocaleString("es-AR")} ({noShowModal.service_name || "servicio"})
+              </p>
+              <p style={{ color: C.muted, fontSize: 11, margin: 0 }}>
+                Se enviará notificación por WhatsApp al cliente.
+              </p>
+            </div>
+            {noShowError && (
+              <p style={{ color: C.red, fontSize: 13, marginBottom: 12, textAlign: "center" }}>
+                {noShowError}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { setNoShowModal(null); setNoShowError(""); }}
+                style={{
+                  flex: 1, padding: 13,
+                  background: "transparent", border: `1px solid ${C.border}`,
+                  borderRadius: 10, color: C.muted,
+                  fontWeight: 600, fontSize: 13, cursor: "pointer",
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={markNoShow}
+                disabled={noShowLoading}
+                style={{
+                  flex: 1, padding: 13,
+                  background: noShowLoading ? "#1a1a1a" : "rgba(239,68,68,0.15)",
+                  border: `1px solid ${noShowLoading ? C.border : C.red}`,
+                  borderRadius: 10, color: noShowLoading ? C.muted : C.red,
+                  fontWeight: 700, fontSize: 13,
+                  cursor: noShowLoading ? "default" : "pointer",
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                {noShowLoading ? "Procesando..." : "Confirmar ausencia"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Modal bloqueo ─────────────────────────────────────────────────────── */}
