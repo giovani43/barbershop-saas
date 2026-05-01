@@ -506,8 +506,11 @@ function BarberPanel({ token, barber, onLogout }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    // date is always YYYY-MM-DD (todayAR uses sv-SE locale; input[type=date] .value is ISO)
+    const url = `${API}/barber/me/day?date=${date}`;
+    console.log("[BarberDashboard] GET", url);
     try {
-      const res  = await fetch(`${API}/barber/me/day?date=${date}`, {
+      const res  = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
