@@ -993,7 +993,7 @@ function ServiceStep({ services, selected, onSelect }) {
 }
 
 // ── Step 3: Slot select ───────────────────────────────────────────────────────
-function SlotStep({ barberId, selectedDate, onDateChange, selectedSlot, onSlotSelect }) {
+function SlotStep({ barberId, selectedDate, onDateChange, selectedSlot, onSlotSelect, refreshKey = 0 }) {
   const [slots, setSlots]   = useState([]);
   const [loading, setLoading] = useState(false);
   const dates = [todayStr(), addDays(todayStr(), 1), addDays(todayStr(), 2)];
@@ -1001,11 +1001,11 @@ function SlotStep({ barberId, selectedDate, onDateChange, selectedSlot, onSlotSe
   useEffect(() => {
     if (!barberId) return;
     setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
-    fetch(`${API}/appointments/day?barber_id=${barberId}&date=${selectedDate}`)
+    fetch(`${API}/appointments/day?barber_id=${barberId}&date=${selectedDate}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => { setSlots(d.slots || []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [barberId, selectedDate]);
+  }, [barberId, selectedDate, refreshKey]);
 
   const morning = slots.filter(s => parseInt(s.time) < 13);
   const evening = slots.filter(s => parseInt(s.time) >= 13);
@@ -2016,10 +2016,11 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
   const [selDate,       setSelDate]       = useState(todayStr());
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [activeApptId,  setActiveApptId]  = useState(null);
-  const [booking,       setBooking]       = useState(false);
-  const [bookError,     setBookError]     = useState("");
-  const [successData,   setSuccessData]   = useState(null);
-  const [reschedApptId, setReschedApptId] = useState(null);
+  const [booking,        setBooking]        = useState(false);
+  const [bookError,      setBookError]      = useState("");
+  const [successData,    setSuccessData]    = useState(null);
+  const [reschedApptId,  setReschedApptId]  = useState(null);
+  const [slotRefreshKey, setSlotRefreshKey] = useState(0);
 
   useEffect(() => {
     fetch(`${API}/shops/${shopSlug}`)
@@ -2098,6 +2099,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
         if (!res.ok) throw new Error(json.message || json.error || "Error al reprogramar");
         setReschedApptId(null);
         setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
+        setSlotRefreshKey(k => k + 1);
         setStep(5);
       } else {
         // ── Reserva nueva ────────────────────────────────────────────────────
@@ -2123,6 +2125,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
         if (!res.ok) throw new Error(json.error || "Error al reservar");
         // Enriquecer con datos del barber_id para la pantalla de reprogramación
         setSuccessData({ ...json.appointment, barber_id: selBarber?.id });
+        setSlotRefreshKey(k => k + 1);
         setStep(5);
       }
     } catch (e) {
@@ -2396,6 +2399,7 @@ export default function BookingFlow({ shopSlug, startStep = -1, startEntryMode =
           onDateChange={d => { setSelDate(d); setSelSlot(null); }}
           selectedSlot={selSlot}
           onSlotSelect={s => { setSelSlot(s); setStep(4); }}
+          refreshKey={slotRefreshKey}
         />
       )}
       {step === 4 && (
