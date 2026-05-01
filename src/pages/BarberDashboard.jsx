@@ -507,12 +507,13 @@ function BarberPanel({ token, barber, onLogout }) {
   const load = useCallback(async () => {
     setLoading(true);
     // date is always YYYY-MM-DD (todayAR uses sv-SE locale; input[type=date] .value is ISO)
-    const url = `${API}/barber/me/day?date=${date}`;
-    console.log("[BarberDashboard] GET", url);
+    const url     = `${API}/barber/me/day?date=${date}`;
+    const headers = { Authorization: `Bearer ${token}` };
+    console.log("[BarberDashboard] request →", url);
+    console.log("[BarberDashboard] token   →", token || "(vacío)");
+    console.log("[BarberDashboard] headers →", headers);
     try {
-      const res  = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res  = await fetch(url, { headers });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setSlots(json.slots);
