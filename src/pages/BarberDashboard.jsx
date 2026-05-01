@@ -659,6 +659,20 @@ function BarberPanel({ token, barber, onLogout }) {
     }
   };
 
+  const markPenaltyPaid = async (apptId) => {
+    try {
+      const res  = await fetch(`${API}/barber/appointments/${apptId}/penalty-paid`, {
+        method:  "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      setSlots(prev => prev.map(s => s.id === apptId ? { ...s, penalty_paid: true } : s));
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadBlocks(); }, [loadBlocks]);
 
@@ -881,9 +895,32 @@ function BarberPanel({ token, barber, onLogout }) {
                       </td>
                       <td style={{ padding: "11px 12px", fontSize: 12, whiteSpace: "nowrap" }}>
                         {slot.status === "no_show" ? (
-                          <span style={{ color: C.red, fontWeight: 700 }}>
-                            ${Math.round((slot.price || 0) * 0.30).toLocaleString("es-AR")} <span style={{ fontWeight: 400 }}>(pendiente)</span>
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap" }}>
+                            {slot.penalty_paid ? (
+                              <span style={{ color: C.muted, fontWeight: 600 }}>
+                                ${Math.round((slot.penalty_amount || slot.price * 0.30 || 0)).toLocaleString("es-AR")} ✅ Cobrado
+                              </span>
+                            ) : (
+                              <>
+                                <span style={{ color: C.red, fontWeight: 700 }}>
+                                  ${Math.round((slot.penalty_amount || (slot.price || 0) * 0.30)).toLocaleString("es-AR")} ⚠️ Pendiente
+                                </span>
+                                <button
+                                  onClick={() => markPenaltyPaid(slot.id)}
+                                  title="Marcar penalidad como cobrada"
+                                  style={{
+                                    background: "rgba(34,197,94,0.1)",
+                                    border: "1px solid rgba(34,197,94,0.35)",
+                                    borderRadius: 6, padding: "3px 8px",
+                                    color: C.green, fontSize: 10, fontWeight: 700,
+                                    cursor: "pointer", flexShrink: 0,
+                                  }}
+                                >
+                                  ✓ Cobrado
+                                </button>
+                              </>
+                            )}
+                          </div>
                         ) : hasClient ? (
                           <span style={{ color: C.muted }}>Efectivo / MP</span>
                         ) : (
