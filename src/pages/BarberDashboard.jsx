@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import AnalyticsView from "./AnalyticsView";
 
 const API = "https://barbershop-api-vpz8.onrender.com/api/v1";
 
@@ -494,6 +495,9 @@ function BarberPanel({ token, barber, onLogout }) {
   // QR scanner state
   const [showQR,  setShowQR]  = useState(false);
 
+  // Analytics view state
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
   // Blocked slots state
   const [blocks,      setBlocks]      = useState([]);
   const [blockModal,  setBlockModal]  = useState(false);
@@ -737,6 +741,25 @@ function BarberPanel({ token, barber, onLogout }) {
           </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
+          <button
+            onClick={() => setShowAnalytics(true)}
+            style={{
+              background: C.goldDim, border: `1px solid ${C.goldBorder}`,
+              borderRadius: 8, padding: "8px 14px",
+              color: C.gold, fontSize: 11, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "'Inter', sans-serif",
+              letterSpacing: "0.1em", textTransform: "uppercase",
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Analytics
+          </button>
           <button
             onClick={() => setShowQR(true)}
             style={{
@@ -1266,6 +1289,11 @@ function BarberPanel({ token, barber, onLogout }) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Analytics overlay */}
+      {showAnalytics && (
+        <AnalyticsView token={token} onClose={() => setShowAnalytics(false)} />
       )}
     </div>
   );
